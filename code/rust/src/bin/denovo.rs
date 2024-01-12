@@ -462,6 +462,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(0)),
             geno: Geno::HomRef,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -470,10 +471,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(1)),
-            geno: Geno::HOMALT,
+            geno: Geno::HomAlt,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -482,10 +484,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(1)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         assert_eq!(check_iht(&child, &mom, &dad).1, Iht::Valid);
@@ -501,8 +504,9 @@ mod tests {
             children: Vec::new(),
             sex: Sex::Female,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(1)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -511,10 +515,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(1)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -523,10 +528,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(1)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         assert_eq!(check_iht(&child, &mom, &dad).1, Iht::Valid);
@@ -541,8 +547,9 @@ mod tests {
             children: Vec::new(),
             sex: Sex::Female,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(1)),
-            geno: Geno::HOMALT,
+            geno: Geno::HomAlt,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -551,10 +558,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(1)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -563,10 +571,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(0)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         assert_eq!(check_iht(&child, &mom, &dad).1, Iht::Valid);
@@ -581,8 +590,9 @@ mod tests {
             children: Vec::new(),
             sex: Sex::Female,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(1)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -591,10 +601,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(0)),
             geno: Geno::HomRef,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -603,10 +614,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(0)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         assert_eq!(check_iht(&child, &mom, &dad).1, Iht::Valid);
@@ -622,8 +634,9 @@ mod tests {
             children: Vec::new(),
             sex: Sex::Female,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(1)),
-            geno: Geno::HOMALT,
+            geno: Geno::HomAlt,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -632,10 +645,11 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(1)),
-            geno: Geno::HOMALT,
+            geno: Geno::HomAlt,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -644,13 +658,14 @@ mod tests {
             father: "NA".to_string(),
             mother: "NA".to_string(),
             children: Vec::new(),
-            sex: Sex::MALE,
+            sex: Sex::Male,
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(0)),
-            geno: Geno::HET,
+            geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
-        assert_eq!(check_iht(&child, &mom, &dad).1, Iht::CAN_DENOVO);
+        assert_eq!(check_iht(&child, &mom, &dad).1, Iht::CanDenovo);
     }
 
     #[test]
@@ -665,6 +680,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(0)),
             geno: Geno::HomRef,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -677,6 +693,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(0), GenotypeAllele::Unphased(0)),
             geno: Geno::HomRef,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -689,6 +706,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(0)),
             geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         assert_eq!(check_iht(&child, &mom, &dad).1, Iht::CanDenovo);
@@ -706,6 +724,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(1), GenotypeAllele::Unphased(2)),
             geno: Geno::HomAlt,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let dad = Member {
@@ -718,6 +737,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(3), GenotypeAllele::Unphased(4)),
             geno: Geno::HomAlt,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         let child = Member {
@@ -730,6 +750,7 @@ mod tests {
             genotype: (GenotypeAllele::Unphased(3), GenotypeAllele::Unphased(2)),
             geno: Geno::Het,
             gq: 0,
+            ref_ratio: 1.0,
         };
 
         assert_eq!(check_iht(&child, &mom, &dad).1, Iht::Valid);
