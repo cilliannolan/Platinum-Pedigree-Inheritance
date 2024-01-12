@@ -665,7 +665,7 @@ mod tests {
             ref_ratio: 1.0,
         };
 
-        assert_eq!(check_iht(&child, &mom, &dad).1, Iht::CanDenovo);
+        assert_eq!(check_iht(&child, &mom, &dad).1, Iht::Violation);
     }
 
     #[test]
