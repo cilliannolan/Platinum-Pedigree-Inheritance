@@ -1,0 +1,7 @@
+{
+    "samples": {
+        "pbsv": "g2g3.pbsv.pedigree-filt.vcf",
+        "sniffles": "g2g3.sniffles.pedigree-filt.vcf",
+        "sawfish": "g2g3.sawfish.pedigree-filt.vcf",
+    }
+}
