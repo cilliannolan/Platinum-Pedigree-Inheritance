@@ -10,7 +10,7 @@ rule pedfilter:
     input: bin=config['concordance'], vcf="pre_filtered/{caller}.prefilt.vcf", inheritance=config['inheritance']
     output: "ped_filtered/{caller}.pedfilt.vcf"
     shell: """
-        {input.bin} --vcf {input.vcf} --inheritance {input.inheritance} --prefix {wildcards.caller}.pedfilt > {wildcards.caller}.pedfilt.out
+        cd ped_filtered ; {input.bin} --vcf {input.vcf} --inheritance {input.inheritance} --prefix {wildcards.caller}.pedfilt > {wildcards.caller}.pedfilt.out
     """
 
 rule prefilter:
