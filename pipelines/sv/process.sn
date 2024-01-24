@@ -1,0 +1,12 @@
+caller = ["pbsv", "sniffles", "sawfish"]
+
+def _get_vcf(wildcards):
+    return config["samples"][wildcards.caller]
+
+rule filter:
+input: _get_vcf
+output: "{caller}.filt.vcf"
+shell: """
+     bcftools annotate -x INFO,FORMAT/AD,FORMAT/DP {input} | bcftools view -i '(ILEN < -49 || ILEN > 50)' - > {output}
+"""
+
