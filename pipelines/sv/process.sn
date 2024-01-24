@@ -4,12 +4,19 @@ def _get_vcf(wildcards):
     return config["samples"][wildcards.caller]
 
 rule collect:
-    input: expand("{caller}.filt.vcf", caller=CALLER)
+    input: expand("ped_filtered/{caller}.pedfilt.vcf", caller=CALLER)
 
-rule filter:
-    input: _get_vcf
-    output: "{caller}.filt.vcf"
+rule pedfilter:
+    input: bin=config['concordance'], vcf="pre_filtered/{caller}.prefilt.vcf"
+    output: "ped_filtered/{caller}.pedfilt.vcf"
     shell: """
-        bcftools annotate -x INFO,FORMAT/AD,FORMAT/DP {input} | bcftools view -i '(ILEN < -49 || ILEN > 50)' - > {output}
+        {input.bin} --vcf {input.vcf} --inheritance {input.inheritance} --prefix {wildcards.caller}.pedfilt > {wildcards.caller}.pedfilt.out
+    """
+
+rule prefilter:
+    input: _get_vcf
+    output: "pre_filtered/{caller}.prefilt.vcf"
+    shell: """
+        bcftools annotate -x INFO,FORMAT/AD,FORMAT/DP,FORMAT/GQ,FORMAT/DR,FORMAT/DV,FORMAT/ID {input} | bcftools view -i '(ILEN < -49 || ILEN > 50)' - > {output}
     """
 
