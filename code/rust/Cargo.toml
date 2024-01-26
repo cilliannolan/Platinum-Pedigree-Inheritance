@@ -29,6 +29,10 @@ path = "src/bin/overlap2keepers.rs"
 name = "anno"
 path = "src/bin/annotateOvl.rs"
 
+[[bin]]
+name = "asmprefix"
+path = "src/bin/asm_prefixer.rs"
+
 [dependencies]
 clap = { version = "*", features = ["derive"] }
 slurp = "1.0.1"
