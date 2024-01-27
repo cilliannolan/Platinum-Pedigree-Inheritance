@@ -44,7 +44,7 @@ fn main() {
 
         if lc == b'>' {
             let lc_parts = line.unwrap().replace(">", "");
-            println!("{}_{}", args.prefix, lc_parts);
+            println!(">{}_{}", args.prefix, lc_parts);
         } else {
             println!("{}", line.unwrap());
         }
