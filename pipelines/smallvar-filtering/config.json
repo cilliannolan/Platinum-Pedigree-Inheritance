@@ -15,7 +15,7 @@
         "assembly": "/pbi/vast-collections/palladium_genomes/zk_analysis/pre_selected_no_g4/pav_joint_g2g3.vcf",
         "dragen": "/pbi/vast-collections/palladium_genomes/zk_analysis/pre_selected_no_g4/ilmn_dragen_g2g3.vcf",
         "clair3hifi": "/pbi/vast-collections/palladium_genomes/zk_analysis/pre_selected_no_g4/hifi_clair3_g2g3.vcf",
-	"dnascope: "X",
+        "dnascope": "/pbi/vast-collections/palladium_genomes/zk_analysis/pre_selected_no_g4/hifi_dnascope_g2g3.vcf",
         "seq": "/pbi/flash/100humans/data/dataset/GRCh38/human_GRCh38_no_alt_analysis_set.fasta",
         "vec_ilmn": "data/ceph.grch38.hifi.g3.csv",
         "vec_hifi": "data/ceph.grch38.hifi.g3.csv",
