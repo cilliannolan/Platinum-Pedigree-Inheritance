@@ -1,5 +1,5 @@
 REF  = "hg38"
-TECH = ["hifi", "ilmn", "ont", "assembly", "dragen", "clair3hifi"]
+TECH = ["hifi", "ilmn", "ont", "assembly", "dragen", "clair3hifi", "scope"]
 
 def _get_vec(wildcards):
     return config[wildcards.ref]["vec_{tech}".format(tech = wildcards.tech)]
@@ -94,7 +94,7 @@ rule na12878_extract_filtered:
     """
 
 rule pedigree_filter:
-     input: con="./concordance", vcf="{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
+     input: config['concordance'], vcf="{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
      output: "{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", "{ref}_{tech}.normalized.pedigree_filtering.info.out", "{ref}_{tech}.normalized.pedigree_filtering.sites"
      shell: """
             bcftools view {wildcards.ref}_{wildcards.tech}.normalized.sorted.bcf > {wildcards.ref}_{wildcards.tech}.normalized.sorted.vcf
