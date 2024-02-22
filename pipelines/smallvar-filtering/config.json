@@ -17,13 +17,13 @@
         "clair3hifi": "/pbi/vast-collections/palladium_genomes/zk_analysis/pre_selected_no_g4/hifi_clair3_g2g3.vcf",
         "dnascope": "/pbi/vast-collections/palladium_genomes/zk_analysis/pre_selected_no_g4/hifi_dnascope_g2g3.vcf",
         "seq": "/pbi/flash/100humans/data/dataset/GRCh38/human_GRCh38_no_alt_analysis_set.fasta",
-        "vec_ilmn": "data/ceph.grch38.hifi.g3.csv",
-        "vec_hifi": "data/ceph.grch38.hifi.g3.csv",
-        "vec_ont": "data/ceph.grch38.hifi.g3.csv",
-        "vec_dragen": "data/ceph.grch38.hifi.g3.csv",
-        "vec_clair3hifi": "data/ceph.grch38.hifi.g3.csv",
-        "vec_assembly": "data/ceph.grch38.hifi.g3.csv",
-        "1mb_win": "data/1mb-ref-GRCh38-windows.bed",
+        "vec_ilmn": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "vec_hifi": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "vec_ont": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "vec_dragen": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "vec_clair3hifi": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "vec_assembly": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "1mb_win": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "hq_regions": "data/palladium_hq_regions.bed"
     }
 }
