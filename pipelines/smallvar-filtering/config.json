@@ -22,6 +22,7 @@
         "vec_ont": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "vec_dragen": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "vec_clair3hifi": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
+        "vec_scope": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "vec_assembly": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "1mb_win": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "hq_regions": "data/palladium_hq_regions.bed"
