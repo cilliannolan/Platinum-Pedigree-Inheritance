@@ -33,7 +33,7 @@ rule tag_sites:
     input: sites="{ref}_{tech}.normalized.pedigree_filtering.sites"
     output: "merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites"
     shell: """
-        perl -lane 'print "$_\t{wildcards.tech}"' > {output}
+        perl -lane 'print "$_\\t{wildcards.tech}"' {input} > {output}
     """
 
 rule refine_hq_regions:
