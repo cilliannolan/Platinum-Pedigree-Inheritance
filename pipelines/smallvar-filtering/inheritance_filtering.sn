@@ -26,8 +26,21 @@ rule gather:
      expand("merged_truth/{ref}/all_na12878_variants.bed", ref=REF),
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
-     expand("merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites",  ref=REF, tech=TECH)
+     expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF)
 
+rule create_vcf:
+    input: mash=config['mash'], data="merged_truth/{ref}/mashed.txt"
+    output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf"
+    shell: """
+        {input.mash} mash2vcf --mashed mashed.txt --samples NA12879,NA12881,NA12882,NA12883,NA12884,NA12885,NA12886,NA12887,NA12877,NA12878 --prefix ceph_small_variant_g2g3 --ik clair3_ont,clair3_hifi,deep_var_hifi,dnascope_hifi,deep_var_ilmn,dragen_ilmn,pav_asm
+    """
+
+rule merge_n_mash:
+    input: expand("merged_truth/{{ref}}/{tech}.normalized.pedigree_filtering.tagged.sites", tech=TECH)
+    output: "merged_truth/{ref}/mashed.txt"
+    shell:  """
+        cat {input} | sort -k1,1 | datamash -g 1 collapse 2,3 > {output}
+    """
 
 rule tag_sites:
     input: sites="{ref}_{tech}.normalized.pedigree_filtering.sites"
