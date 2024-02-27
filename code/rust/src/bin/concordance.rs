@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read as IoRead;
 use std::path::Path;
 
@@ -78,6 +78,7 @@ struct InheritanceBlock {
     sample_lookups: HashMap<String, usize>,
     parental_hap: Vec<String>,
     patterns: HashMap<String, Vec<[i32; 2]>>,
+    inherited_haps: HashSet<char>,
 }
 // returns a HashMap were the key is a simplified genotype string (0=homref,1=het,2=homalt), and the corresponding phase
 fn okay_genotypes(iht: &InheritanceBlock) -> HashMap<String, Vec<[i32; 2]>> {
@@ -173,6 +174,13 @@ fn parse_inht(inht_fn: String) -> Vec<InheritanceBlock> {
                 .parental_hap
                 .push(record.as_ref().unwrap()[i].to_string());
         }
+        // counting up haplotypes seen in children
+        for i in 0..ihtblock.parental_hap.len() - 2 {
+            let geno = ihtblock.parental_hap.get(i).unwrap();
+            ihtblock.inherited_haps.insert(geno.as_bytes()[0].into());
+            ihtblock.inherited_haps.insert(geno.as_bytes()[1].into());
+        }
+
         if one_parent {
             println!("Warning skipping block missing both parents {}", ihtblock);
             continue;
@@ -403,8 +411,15 @@ fn main() {
 
     for b in &inheritance {
         println!(
-            "block_stats\t{}\t{}\t{}\t{}\t{}",
-            b.chrom, b.start, b.end, b.passing_count, b.failing_count
+            "block_stats\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            args.prefix,
+            b.chrom,
+            b.start,
+            b.end,
+            b.passing_count,
+            b.failing_count,
+            b.passing_count + b.failing_count,
+            b.inherited_haps.len(),
         );
     }
 
