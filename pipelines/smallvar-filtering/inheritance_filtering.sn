@@ -39,7 +39,7 @@ rule identify_overlaps:
 
 rule prep_compressed_vcf:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=config['seq']
-    output: "
+    output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     shell: """
         bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b |  bcftools sort -O z -o {output}
     """
