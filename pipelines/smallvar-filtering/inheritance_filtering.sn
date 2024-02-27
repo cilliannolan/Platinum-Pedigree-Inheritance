@@ -20,13 +20,13 @@ rule gather:
     input: expand("{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
      expand("{ref}_{tech}.normalized.pedigree_filtering.info.out", ref=REF, tech=TECH), 
      expand("{ref}_{tech}.normalized.pedigree_filtered.counts.bed",ref=REF, tech=TECH), 
-    # expand("venn_{ref}/000{ven}.counts", ref=REF, ven=[0, 1, 2, 3]),
      expand("{ref}_{tech}.normalized.na12878.counts",ref=REF, tech=TECH),
      expand("{ref}_{tech}.normalized.pedigree_filtered.na12878.counts",ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
      expand("merged_truth/{ref}/all_na12878_variants.bed", ref=REF),
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF)
+     expand("merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites",  ref=REF, tech=TECH)
 
 
 rule tag_sites:
