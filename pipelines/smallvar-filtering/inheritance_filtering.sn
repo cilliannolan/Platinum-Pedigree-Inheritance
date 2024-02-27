@@ -31,14 +31,14 @@ rule gather:
 
 
 rule identify_overlaps:
-    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=config['seq'], region_fn=config['regions_for_resolver'], resolver=config['resolver']
+    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, region_fn=config['regions_for_resolver'], resolver=config['resolver']
     output: "merged_truth/{ref}/NA12878_resolver.ovls.txt"
     shell: """
         {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample NA12878 --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/NA12878_resolver -d
     """
 
 rule prep_compressed_vcf:
-    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=config['seq']
+    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=_get_genome
     output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     shell: """
         bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b |  bcftools sort -O z -o {output}
