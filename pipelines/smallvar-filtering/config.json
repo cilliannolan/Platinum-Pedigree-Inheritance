@@ -29,5 +29,6 @@
     },
     "concordance": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/concordance",
     "mash": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/mash2vcf",
+    "resolver": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/resolver",
     "regions_for_resolver": "/pbi/vast-collections/palladium_genomes/zk_analysis/palladium-genomes-09052023/pipelines/resovler/2mbindows1mstep.regions.txt",
 }
