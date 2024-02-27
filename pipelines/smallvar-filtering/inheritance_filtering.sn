@@ -25,7 +25,7 @@ rule gather:
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
      expand("merged_truth/{ref}/all_na12878_variants.bed", ref=REF),
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
-     expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF)
+     expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites",  ref=REF, tech=TECH)
 
 
@@ -33,7 +33,7 @@ rule tag_sites:
     input: sites="{ref}_{tech}.normalized.pedigree_filtering.sites"
     output: "merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites"
     shell: """
-        perl -lane 'print "$_\t{tech}"' > {output}
+        perl -lane 'print "$_\t{wildcards.tech}"' > {output}
     """
 
 rule refine_hq_regions:
