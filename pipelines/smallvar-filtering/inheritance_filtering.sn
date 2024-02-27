@@ -28,6 +28,14 @@ rule gather:
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF)
 
+
+rule tag_sites:
+    input: sites="{ref}_{tech}.normalized.pedigree_filtering.sites"
+    output: "merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites"
+    shell: """
+        perl -lane 'print "$_\t{tech}"' > {output}
+    """
+
 rule refine_hq_regions:
     input: ped_var="merged_truth/{ref}/palladium_merged_techs.bed", hq="merged_truth/{ref}/hq_regions_no_vars.bed"
     output: "merged_truth/{ref}/hq_regions_final.bed"
@@ -130,7 +138,7 @@ rule merge_beds:
     input: expand( "{{ref}}_{tech}.normalized.na12878.sorted.bed",  tech=TECH)
     output: "merged_truth/{ref}/all_na12878_variants.bed"
     shell: """
-        cat {input} | sort -k1,1 -k2,2n > {output}
+        cat {input} | sort -k1,1 -k2,2n  > {output}
     """
 
 rule make_beds:
