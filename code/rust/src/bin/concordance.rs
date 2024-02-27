@@ -152,6 +152,7 @@ fn parse_inht(inht_fn: String) -> Vec<InheritanceBlock> {
             sample_lookups: HashMap::new(),
             parental_hap: Vec::new(),
             patterns: HashMap::new(),
+            inherited_haps: HashSet::new(),
         };
 
         let mut one_parent = false;
