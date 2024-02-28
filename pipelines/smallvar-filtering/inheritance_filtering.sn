@@ -38,10 +38,10 @@ rule build_overlap_haplotypes:
     """
 
 rule build_regions_to_resolve:
-    input: ovls="merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.bed", genomic_regions=config['2kwindows']
-    output: "merged_truth/{wildcards.ref}/{parent}_to_resolve.regions"
+    input: ovls="merged_truth/{ref}/{parent}_resolver.ovls.bed", genomic_regions=config['2kwindows']
+    output: "merged_truth/{ref}/{parent}_to_resolve.regions"
     shell: """
-        bedtools intersect -c -a {input.genomic_regions} -b {input.ovls} | perl -lane 'print if $F[-1] > 0' | perl -lane 'print "$F[0]:$F[1]-$F[2]"' > 
+        bedtools intersect -c -a {input.genomic_regions} -b {input.ovls} | perl -lane 'print if $F[-1] > 0' | perl -lane 'print "$F[0]:$F[1]-$F[2]"' > {output}
     """
 
 rule identify_overlaps:
