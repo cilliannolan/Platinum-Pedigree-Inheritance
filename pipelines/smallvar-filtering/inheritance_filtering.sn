@@ -30,9 +30,23 @@ rule gather:
      expand("merged_truth/{ref}/{parent}_resolver.ovls.txt",ref=REF, parent=["NA12878", "NA12877"] )
 
 
+rule build_overlap_haplotypes:
+    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, regions="merged_truth/{ref}/{parent}_to_resolve.regions", resolver=config['resolver']
+    output: "merged_truth/{ref}/{parent}_haps.haps.fasta"
+    shell: """
+        {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver_haps
+    """
+
+rule build_regions_to_resolve:
+    input: ovls="merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.bed", genomic_regions=config['2kwindows']
+    output: "merged_truth/{wildcards.ref}/{parent}_to_resolve.regions"
+    shell: """
+        bedtools intersect -c -a {input.genomic_regions} -b {input.ovls} | perl -lane 'print if $F[-1] > 0' | perl -lane 'print "$F[0]:$F[1]-$F[2]"' > 
+    """
+
 rule identify_overlaps:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, region_fn=config['regions_for_resolver'], resolver=config['resolver']
-    output: "merged_truth/{ref}/{parent}_resolver.ovls.txt"
+    output: "merged_truth/{ref}/{parent}_resolver.ovls.txt", "merged_truth/{ref}/{parent}_resolver.ovls.txt"
     shell: """
         {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver -d
         sort merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.txt | perl -lane 'print "$F[0]\\t$F[1]\\t$F[1]"' | sort | uniq  > merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.bed
