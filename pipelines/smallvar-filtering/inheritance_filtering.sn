@@ -35,7 +35,7 @@ rule identify_overlaps:
     output: "merged_truth/{ref}/{parent}_resolver.ovls.txt"
     shell: """
         {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver -d
-        sort {parent}_resolver.ovls.txt | perl -lane 'print "$F[0]\\t$F[1]\\t$F[1]"' | sort | uniq  > {parent}_resolver.ovls.bed
+        sort {wildcards.parent}_resolver.ovls.txt | perl -lane 'print "$F[0]\\t$F[1]\\t$F[1]"' | sort | uniq  > {parent}_resolver.ovls.bed
     """
 
 rule prep_compressed_vcf:
