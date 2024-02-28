@@ -31,4 +31,5 @@
     "mash": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/mash2vcf",
     "resolver": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/resolver",
     "regions_for_resolver": "/pbi/vast-collections/palladium_genomes/zk_analysis/palladium-genomes-09052023/pipelines/resovler/2mbindows1mstep.regions.txt",
+    "2kwindows": "/pbi/vast-collections/palladium_genomes/zk_analysis/platinum-pedigree-small-variants-feb22-24/merged_truth/hg38/2kwindows1kstep.bed"
 }
