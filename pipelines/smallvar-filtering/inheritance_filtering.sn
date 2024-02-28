@@ -27,7 +27,7 @@ rule gather:
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
-     expand("merged_truth/{ref}/{parent}_resolver.ovls.txt",ref=REF, parent=["NA12878", "NA12877"] )
+     expand("merged_truth/{ref}/{parent}_haps.haps.fasta",ref=REF, parent=["NA12878", "NA12877"] )
 
 
 rule build_overlap_haplotypes:
