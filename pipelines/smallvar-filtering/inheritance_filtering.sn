@@ -27,14 +27,15 @@ rule gather:
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
-     expand("merged_truth/{ref}/NA12878_resolver.ovls.txt", ref=REF)
+     expand("merged_truth/{ref}/{parent}_resolver.ovls.txt",ref=REF, parent=["NA12878", "NA12877"] )
 
 
 rule identify_overlaps:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, region_fn=config['regions_for_resolver'], resolver=config['resolver']
-    output: "merged_truth/{ref}/NA12878_resolver.ovls.txt"
+    output: "merged_truth/{ref}/{parent}_resolver.ovls.txt"
     shell: """
-        {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample NA12878 --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/NA12878_resolver -d
+        {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver -d
+        sort {parent}_resolver.ovls.txt | perl -lane 'print "$F[0]\\t$F[1]\\t$F[1]"' | sort | uniq  > {parent}_resolver.ovls.bed
     """
 
 rule prep_compressed_vcf:
@@ -42,6 +43,7 @@ rule prep_compressed_vcf:
     output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     shell: """
         bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b |  bcftools sort -O z -o {output}
+        bcftools index {output}
     """
 
 rule create_vcf:
