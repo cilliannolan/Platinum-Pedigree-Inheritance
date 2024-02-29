@@ -86,6 +86,7 @@ struct Var {
     ovl: OvlType,
     next_vars: Vec<usize>,
     idx: usize,
+    vidx: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,13 +100,14 @@ impl fmt::Display for Var {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "{}\t{}\t{}\t{}\t{:?}\t{}",
+            "{}\t{}\t{}\t{}\t{:?}\t{}\t{}",
             self.seqid,
             self.start + 1,
             self.ref_allele,
             self.alt_allele,
             self.ovl,
             self.idx,
+            self.vidx,
         )
     }
 }
@@ -204,7 +206,7 @@ fn load_data(
     bcf.fetch(region.rid, region.start, Some(region.end))
         .unwrap();
 
-    let dummy = Var {
+    let mut dummy = Var {
         seqid: region.name.clone(),
         vt: VarType::Ref,
         start: region.start as i64,
@@ -214,9 +216,11 @@ fn load_data(
         ovl: OvlType::NoOvl,
         next_vars: Vec::new(),
         idx: 0 as usize,
+        vidx: 0 as usize,
     };
 
     variants[0].push(dummy.clone());
+    dummy.vidx = 1;
     variants[1].push(dummy.clone());
 
     for record in bcf.records() {
@@ -230,54 +234,56 @@ fn load_data(
             .unwrap()
             .get(*sample_lookup.get(&args.sample).unwrap());
 
-        let vindex = (gt[1] == GenotypeAllele::Phased(1)) as usize;
+        for vindex in 0..2 {
+            if (gt[vindex] == GenotypeAllele::Unphased(0)
+                || gt[vindex] == GenotypeAllele::Phased(0))
+            {
+                continue;
+            }
+            let mut last_idx: usize = variants[vindex].len() - 1;
+            let current_idx: usize = variants[vindex].len();
 
-        if gt[0] == GenotypeAllele::Unphased(0) && gt[1] == GenotypeAllele::Phased(0) {
-            continue;
-        }
+            let mut entry = Var {
+                seqid: region.name.clone(),
+                vt: vtype.clone(),
+                start: r.pos(),
+                end: end,
+                ref_allele: (*str::from_utf8(r.alleles()[0]).unwrap()).to_string(),
+                alt_allele: (*str::from_utf8(r.alleles()[1]).unwrap()).to_string(),
+                ovl: OvlType::NoOvl,
+                next_vars: Vec::new(),
+                idx: current_idx,
+                vidx: vindex,
+            };
 
-        let mut last_idx: usize = variants[vindex].len() - 1;
-        let current_idx: usize = variants[vindex].len();
-
-        let mut entry = Var {
-            seqid: region.name.clone(),
-            vt: vtype.clone(),
-            start: r.pos(),
-            end: end,
-            ref_allele: (*str::from_utf8(r.alleles()[0]).unwrap()).to_string(),
-            alt_allele: (*str::from_utf8(r.alleles()[1]).unwrap()).to_string(),
-            ovl: OvlType::NoOvl,
-            next_vars: Vec::new(),
-            idx: current_idx,
-        };
-
-        // checking that everything lines up with the reference
-        if entry.vt == VarType::Snv {
-            let base = (region_bytes[(entry.start - (region.start as i64)) as usize] as char)
-                .to_ascii_uppercase();
-            assert!(entry.ref_allele.as_bytes()[0] as char == base);
-        }
-
-        let mut last_var: &mut Var = &mut variants[vindex][last_idx];
-
-        if last_var.end >= entry.start {
-            (*last_var).ovl = OvlType::OvlNext;
-            entry.ovl = OvlType::OvlPrev;
-        }
-
-        while true {
-            if last_var.end < entry.start {
-                last_var.next_vars.push(current_idx);
+            // checking that everything lines up with the reference
+            if entry.vt == VarType::Snv {
+                let base = (region_bytes[(entry.start - (region.start as i64)) as usize] as char)
+                    .to_ascii_uppercase();
+                assert!(entry.ref_allele.as_bytes()[0] as char == base);
             }
 
-            if last_var.ovl == OvlType::NoOvl || last_idx == 0 {
-                break;
-            }
-            last_idx -= 1;
-            last_var = &mut variants[vindex][last_idx];
-        }
+            let mut last_var: &mut Var = &mut variants[vindex][last_idx];
 
-        variants[vindex].push(entry);
+            if last_var.end >= entry.start {
+                (*last_var).ovl = OvlType::OvlNext;
+                entry.ovl = OvlType::OvlPrev;
+            }
+
+            while true {
+                if last_var.end < entry.start {
+                    last_var.next_vars.push(current_idx);
+                }
+
+                if last_var.ovl == OvlType::NoOvl || last_idx == 0 {
+                    break;
+                }
+                last_idx -= 1;
+                last_var = &mut variants[vindex][last_idx];
+            }
+
+            variants[vindex].push(entry);
+        }
     }
     return Data {
         region: Region {
@@ -345,7 +351,7 @@ fn main() {
     let mut ovl_file = File::create(ovl_fn).expect("Unable to output seq file");
 
     ovl_file
-        .write("#chr\tstart\tref_allele\talt_allele\toverlap_type\tidx\n".as_bytes())
+        .write("#chr\tstart\tref_allele\talt_allele\toverlap_type\tidx\thap\n".as_bytes())
         .unwrap();
 
     let seq_results_fn: String = format!("{}.haps.fasta", args.prefix);
@@ -372,6 +378,9 @@ fn main() {
         let data = load_data(&args, bcf, &r, &sample_lookup);
         info!("Loaded data for region: {}", r);
 
+        //print!("{:?}\n\n", data.variants[0]);
+        //print!("{:?}\n\n", data.variants[1]);
+
         for h in &data.variants {
             for v in h {
                 if v.ovl != OvlType::NoOvl {
@@ -391,7 +400,14 @@ fn main() {
             for (vidx, v) in all_haps.iter().enumerate() {
                 let hap = build_haplotypes(&v, &data.sequence, data.region.start as i64);
 
-                let meta = format!("{};{};hap:{}.{}", args.sample.clone(), r, iidx, vidx,);
+                let meta = format!(
+                    "{};{};hap:{}.{} nvar:{}",
+                    args.sample.clone(),
+                    r,
+                    iidx,
+                    vidx,
+                    v.len()
+                );
 
                 let vus: VarTainer = VarTainer {
                     label: meta.clone(),
