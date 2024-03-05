@@ -27,14 +27,14 @@ rule gather:
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
-     expand("merged_truth/{ref}/{parent}_haps.haps.fasta",ref=REF, parent=["NA12878", "NA12877"] )
+     expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"] )
 
 
 rule build_overlap_haplotypes:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, regions="merged_truth/{ref}/{parent}_to_resolve.regions", resolver=config['resolver']
-    output: "merged_truth/{ref}/{parent}_resolver_haps.haps.fasta"
+    output: "merged_truth/{ref}/{parent}_resolver.haps.fasta"
     shell: """
-        {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.regions} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver_haps
+        {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.regions} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver
     """
 
 rule build_regions_to_resolve:
