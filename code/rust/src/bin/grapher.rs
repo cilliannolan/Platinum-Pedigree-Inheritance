@@ -400,14 +400,7 @@ fn main() {
             for (vidx, v) in all_haps.iter().enumerate() {
                 let hap = build_haplotypes(&v, &data.sequence, data.region.start as i64);
 
-                let meta = format!(
-                    "{};{};hap:{}.{} nvar:{}",
-                    args.sample.clone(),
-                    r,
-                    iidx,
-                    vidx,
-                    v.len()
-                );
+                let meta = format!("{};{};hap:{}.{}", args.sample.clone(), r, iidx, vidx,);
 
                 let vus: VarTainer = VarTainer {
                     label: meta.clone(),
@@ -418,7 +411,7 @@ fn main() {
                 json_stuct.insert(meta.clone(), vus);
 
                 seq_file
-                    .write(format!(">{}\n{}\n", meta, hap).as_bytes())
+                    .write(format!(">{} nvar:{}\n{}\n", meta, v.len(), hap).as_bytes())
                     .unwrap();
             }
         }
