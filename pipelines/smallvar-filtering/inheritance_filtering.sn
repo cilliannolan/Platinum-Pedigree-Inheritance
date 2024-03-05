@@ -63,7 +63,7 @@ rule prep_compressed_vcf:
     """
 
 rule remove_tr:
-    input:  vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf"", tr=config['tr']
+    input:  vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", tr=config['tr']
     output: "merged_truth/{ref}/ceph_small_variant_g2g3_notr.vcf"
     shell: """
         bedtools subtract --header -A -a {input.vcf} -b {input.tr} > {output}
