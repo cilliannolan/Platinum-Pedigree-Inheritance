@@ -256,6 +256,10 @@ fn load_data(
                 vidx: vindex,
             };
 
+            if entry.vt == VarType::Deletion || entry.vt == VarType::Insertion {
+                entry.start += 1;
+            }
+
             // checking that everything lines up with the reference
             if entry.vt == VarType::Snv {
                 let base = (region_bytes[(entry.start - (region.start as i64)) as usize] as char)
@@ -280,6 +284,10 @@ fn load_data(
                 }
                 last_idx -= 1;
                 last_var = &mut variants[vindex][last_idx];
+            }
+
+            if entry.vt == VarType::Deletion || entry.vt == VarType::Insertion {
+                entry.start += 1;
             }
 
             variants[vindex].push(entry);
