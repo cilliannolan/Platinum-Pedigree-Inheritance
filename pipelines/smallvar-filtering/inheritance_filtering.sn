@@ -54,7 +54,7 @@ rule identify_overlaps:
     """
 
 rule prep_compressed_vcf:
-    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3_notr.vcf", ref=_get_genome
+    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=_get_genome
     output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     shell: """
         bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b |  bcftools sort -O z -o {output}
@@ -62,12 +62,6 @@ rule prep_compressed_vcf:
 
     """
 
-rule remove_tr:
-    input:  vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", tr=config['tr']
-    output: "merged_truth/{ref}/ceph_small_variant_g2g3_notr.vcf"
-    shell: """
-        bedtools subtract -header -A -a {input.vcf} -b {input.tr} > {output}
-    """
 
 rule create_vcf:
     input: mash=config['mash'], data="merged_truth/{ref}/mashed.txt"
