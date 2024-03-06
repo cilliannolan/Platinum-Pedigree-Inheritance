@@ -287,7 +287,7 @@ fn load_data(
             }
 
             if entry.vt == VarType::Deletion || entry.vt == VarType::Insertion {
-                entry.start += 1;
+                entry.start -= 1;
             }
 
             variants[vindex].push(entry);
