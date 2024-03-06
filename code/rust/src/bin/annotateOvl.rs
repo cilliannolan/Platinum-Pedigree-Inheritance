@@ -59,7 +59,6 @@ fn main() {
     let mut anno_lookup: HashMap<String, String> = HashMap::new();
     for a in annotations {
         anno_lookup.insert(a.key.clone(), a.anno.clone());
-        println!("lu:{} {}", a.key, a.anno);
     }
 
     let mut bcf = Reader::from_path(args.vcf).expect("Error opening vcf file.");
