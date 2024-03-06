@@ -84,16 +84,12 @@ fn main() {
 
         let lk = format!("{}:{}:{}:{}", chr, record.pos(), ref_allele, alt_allele);
 
-        println!("lk:{}", lk);
-
         let mut new_record = record;
         outvcf.translate(&mut new_record);
         if anno_lookup.contains_key(&lk) {
-            println!("YES");
             let payload = anno_lookup.get(&lk).unwrap().as_bytes();
             new_record.push_info_string(b"OVL", &[payload]).unwrap();
         }
-        println!("v: {:?}", new_record);
 
         outvcf.write(&new_record).unwrap();
     }
