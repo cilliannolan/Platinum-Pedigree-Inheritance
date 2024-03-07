@@ -146,11 +146,11 @@ fn main() {
             *lowest_edits.get_mut(&final_key.to_string()).unwrap() = edit_distance;
             *lowest_ed_hap.get_mut(&final_key.to_string()).unwrap() = hapkey.clone();
         } else if edit_distance == *v {
-            info!("found a tie");
+            debug!("found a tie");
             let current_var_count = count_indel(haplotype_vars.get(&hapkey).unwrap());
             let current_best = lowest_ed_hap.get(&final_key.to_string()).unwrap();
             let prior_var_count = count_indel(haplotype_vars.get(current_best).unwrap());
-            info!(
+            debug!(
                 "var counts: c-var-count: {} p-var-count: {}",
                 current_var_count, prior_var_count
             );
