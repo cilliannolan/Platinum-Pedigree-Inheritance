@@ -5,7 +5,7 @@ use std::io::Read;
 use std::{fs::File, io::Write, str};
 
 use clap::Parser;
-use log::{info, warn, LevelFilter};
+use log::{debug, info, warn, LevelFilter};
 use serde::{Deserialize, Serialize};
 
 /// A tool for sorting which haplotypes to keep
@@ -14,11 +14,11 @@ use serde::{Deserialize, Serialize};
 struct Args {
     /// minimap2 paf with alignment
     #[arg(short, long)]
-    paf: String,
+    aln: String,
 
     /// variant json, mapping from variants to haplotype
     #[arg(short, long)]
-    variants: String,
+    json: String,
 
     /// prefix for output
     #[arg(short, long)]
@@ -73,6 +73,16 @@ struct Anno {
     anno: String,
 }
 
+fn count_indel(vt: &VarTainer) -> usize {
+    let mut result: usize = 0;
+    for v in &vt.vars {
+        if v.vt == VarType::Deletion || v.vt == VarType::Insertion {
+            result += 1;
+        }
+    }
+    result
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -92,7 +102,7 @@ fn main() {
 
     let mut variant_info: String = String::new();
 
-    let mut variant_json = File::open(args.variants).unwrap();
+    let mut variant_json = File::open(args.json).unwrap();
     let mut varriant_anno_fh = File::create(format!("{}.var_anno.json", args.prefix)).unwrap();
     let mut variant_anno: Vec<Anno> = Vec::new();
     let mut variant_marker: HashSet<String> = HashSet::new();
@@ -102,7 +112,7 @@ fn main() {
     let haplotype_vars: HashMap<String, VarTainer> = serde_json::from_str(&variant_info).unwrap();
     info!("num vars {} ", haplotype_vars.len());
 
-    for line in read_to_string(args.paf.clone()).unwrap().lines() {
+    for line in read_to_string(args.aln.clone()).unwrap().lines() {
         let paf_parts: Vec<String> = line.split("\t").map(str::to_string).collect();
         let edit_dist_parts: Vec<String> = paf_parts
             .get(12)
@@ -135,13 +145,30 @@ fn main() {
             info!("prev: {} better: {} key: {}", v, edit_distance, final_key);
             *lowest_edits.get_mut(&final_key.to_string()).unwrap() = edit_distance;
             *lowest_ed_hap.get_mut(&final_key.to_string()).unwrap() = hapkey.clone();
+        } else if edit_distance == *v {
+            info!("found a tie");
+            let current_var_count = count_indel(haplotype_vars.get(&hapkey).unwrap());
+            let current_best = lowest_ed_hap.get(&final_key.to_string()).unwrap();
+            let prior_var_count = count_indel(haplotype_vars.get(current_best).unwrap());
+            info!(
+                "var counts: c-var-count: {} p-var-count: {}",
+                current_var_count, prior_var_count
+            );
+
+            if current_var_count < prior_var_count {
+                *lowest_edits.get_mut(&final_key.to_string()).unwrap() = edit_distance;
+                *lowest_ed_hap.get_mut(&final_key.to_string()).unwrap() = hapkey.clone();
+            }
         }
     }
 
     for (i, _j) in lowest_edits {
         let k = lowest_ed_hap.get(&i).unwrap();
+        info!("selected haplotype:{:?} {:?}", i, k);
+
         for v in &haplotype_vars.get(k).unwrap().vars {
             let vk = format!("{}:{}:{}:{}", v.seqid, v.start, v.ref_allele, v.alt_allele);
+            debug!("keeper variant {} on haplotype {}", vk, k);
             variant_anno.push(Anno {
                 key: vk.clone(),
                 anno: "HAP_SELECTED".to_string(),

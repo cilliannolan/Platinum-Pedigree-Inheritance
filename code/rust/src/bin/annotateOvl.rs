@@ -18,7 +18,7 @@ struct Args {
 
     /// VCF file
     #[arg(short, long)]
-    vcf: String,
+    data: String,
 
     /// Output prefix
     #[arg(short, long)]
@@ -61,7 +61,7 @@ fn main() {
         anno_lookup.insert(a.key.clone(), a.anno.clone());
     }
 
-    let mut bcf = Reader::from_path(args.vcf).expect("Error opening vcf file.");
+    let mut bcf = Reader::from_path(args.data).expect("Error opening vcf file.");
     let header = bcf.header().clone();
     let mut wheader: Header = Header::from_template(&header);
     wheader.push_record(br#"##INFO=<ID=OVL,Number=1,Type=String,Description="pass/fail info for overlapping variants on the same haplotype">"#);
