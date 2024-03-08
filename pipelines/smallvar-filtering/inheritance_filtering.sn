@@ -108,7 +108,7 @@ rule make_tpvar_bed:
           bcftools query -f '%CHROM\\t%POS0\\t%END\\n' {input.bcf}  > {output}
     """
 
-rule merge__filtered:
+rule merge_filtered:
     input: expand("filtering/{{ref}}_{tech}.normalized.pedigree_filtered_sorted.bcf", tech=TECH)
     output: "merged_truth/{ref}/palladium_merged_techs.bcf"
     shell: """
@@ -122,7 +122,7 @@ rule pedigree_filter:
             {input.con} -i {input.vector} -v {input.bcf} -p filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered > filtering/{wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
             bcftools sort --output-type b filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered.vcf > {output[0]}
             bcftools index {output[0]}
-            bcftools query -f '%CHROM:%POS0:%END:%REF:%ALT\t[%GT:]\n' {output[0]} > {output[2]}
+            bcftools query -f '%CHROM:%POS0:%END:%REF:%ALT\t[%GT:]\n' {output[0]} > {output[1]}
      """
 
 rule subtract_all_vars_hq:
