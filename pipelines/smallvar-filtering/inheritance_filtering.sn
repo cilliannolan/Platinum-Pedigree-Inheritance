@@ -17,7 +17,7 @@ def _get_hq(wildcards):
     return config[wildcards.ref]["hq_regions"]
 
 rule gather:
-    input: expand("{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
+    input: expand("filtering/{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
      expand("merged_truth/{ref}/all_variants.bed", ref=REF),
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
