@@ -127,7 +127,7 @@ rule pedigree_filter:
      """
 
 rule subtract_all_vars_hq:
-    input: hq=_get_hq, vars="merged_truth/{ref}/all_na12878_variants.bed"
+    input: hq=_get_hq, vars="merged_truth/{ref}/all_variants.bed"
     output: "merged_truth/{ref}/hq_regions_no_vars.bed"
     shell: """
         bedtools subtract -a {input.hq} -b {input.vars} > {output}
