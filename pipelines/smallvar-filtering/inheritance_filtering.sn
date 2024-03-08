@@ -1,5 +1,5 @@
 REF  = "hg38"
-TECH = ["hifi", "ilmn", "ont", "assembly", "dragen", "clair3hifi", "dnascope"]
+TECH = ["hifi", "ilmn", "ont", "assembly", "dragen", "clair3hifi"]
 
 def _get_vec(wildcards):
     return config[wildcards.ref]["vec_{tech}".format(tech = wildcards.tech)]
@@ -18,10 +18,6 @@ def _get_hq(wildcards):
 
 rule gather:
     input: expand("{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
-     expand("{ref}_{tech}.normalized.pedigree_filtering.info.out", ref=REF, tech=TECH), 
-     expand("{ref}_{tech}.normalized.pedigree_filtered.counts.bed",ref=REF, tech=TECH), 
-     expand("{ref}_{tech}.normalized.na12878.counts",ref=REF, tech=TECH),
-     expand("{ref}_{tech}.normalized.pedigree_filtered.na12878.counts",ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
      expand("merged_truth/{ref}/all_na12878_variants.bed", ref=REF),
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
@@ -62,7 +58,6 @@ rule prep_compressed_vcf:
 
     """
 
-
 rule create_vcf:
     input: mash=config['mash'], data="merged_truth/{ref}/mashed.txt"
     output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf"
@@ -78,10 +73,25 @@ rule merge_n_mash:
     """
 
 rule tag_sites:
-    input: sites="{ref}_{tech}.normalized.pedigree_filtering.sites"
+    input: sites="filtering/{ref}_{tech}.normalized.pedigree_filtering.sites"
     output: "merged_truth/{ref}/{tech}.normalized.pedigree_filtering.tagged.sites"
     shell: """
         perl -lane 'print "$_\\t{wildcards.tech}"' {input} > {output}
+    """
+
+rule count:
+    input: "filtering/{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf"
+    output: "filtering/{ref}_{tech}.normalized.pedigree_filtered.counts"
+    shell: """
+        bcftools +counts {input} > {output}
+    """
+
+rule win_count:
+    input: bcf="filtering/{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", win=_get_win
+    output: "filtering/{ref}_{tech}.normalized.pedigree_filtered.counts.bed"
+    shell: """
+        bcftools view {input.bcf} > {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.sorted.vcf
+        bedtools intersect -c -a {input.win} -b {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.sorted.vcf > {output}
     """
 
 rule refine_hq_regions:
@@ -91,67 +101,23 @@ rule refine_hq_regions:
         cat {input.ped_var} {input.hq} | sort -k1,1 -k2,2n | bedtools merge -i - > {output}
     """
 
-rule venn_counts:
-    input: "venn_{ref}/000{ven}.vcf", 
-    output: "venn_{ref}/000{ven}.counts",
-    shell: """
-        bcftools +counts {input} > {output}
-    """
-
-rule venn:
-    input: expand("{{ref}}_{tech}.normalized.pedigree_filtered.bcf", tech=TECH)
-    output: "venn_{ref}/000{ven}.vcf"
-    shell: """
-        bcftools isec -p venn_{wildcards.ref} {input}
-    """
-
-rule count:
-    input: "{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf"
-    output: "{ref}_{tech}.normalized.pedigree_filtered.counts"
-    shell: """
-        bcftools +counts {input} > {output}
-    """
-
-rule win_count:
-    input: bcf="{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", win=_get_win
-    output: "{ref}_{tech}.normalized.pedigree_filtered.counts.bed"
-    shell: """
-        bcftools view {input.bcf} > {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.sorted.vcf
-        bedtools intersect -c -a {input.win} -b {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.sorted.vcf > {output}
-    """
-
-rule na12878_count_pedigree_filter:
-    input: "{ref}_{tech}.normalized.pedigree_filtered.na12878.sorted.bcf"
-    output: "{ref}_{tech}.normalized.pedigree_filtered.na12878.counts"
-    shell: """
-        bcftools +counts {input} > {output}
-    """
-
-rule make_tp_na12878_bed:
+rule make_tpvar_bed:
     input: bcf="merged_truth/{ref}/palladium_merged_techs.bcf", genome=_get_genome
     output: "merged_truth/{ref}/palladium_merged_techs.bed"
     shell: """
           bcftools query -f '%CHROM\\t%POS0\\t%END\\n' {input.bcf}  > {output}
     """
 
-rule merge_na12878_filtered:
-    input: expand("{{ref}}_{tech}.normalized.pedigree_filtered.na12878.sorted.bcf", tech=TECH)
+rule merge__filtered:
+    input: expand("filtering/{{ref}}_{tech}.normalized.pedigree_filtered.sorted.bcf", tech=TECH)
     output: "merged_truth/{ref}/palladium_merged_techs.bcf"
     shell: """
         bcftools concat -O b -a -d all {input} > {output}
     """
 
-rule na12878_extract_filtered:
-    input: "{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf"
-    output: "{ref}_{tech}.normalized.pedigree_filtered.na12878.sorted.bcf"
-    shell: """
-        bcftools view -s NA12878 -O b {input} | bcftools view -O b -i 'GT[*]="alt"' > {output}
-        bcftools index {output}
-    """
-
 rule pedigree_filter:
-     input: config['concordance'], vcf="{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
-     output: "{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", "{ref}_{tech}.normalized.pedigree_filtering.info.out", "{ref}_{tech}.normalized.pedigree_filtering.sites"
+     input: config['concordance'], vcf="filtering/{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
+     output: "filtering/{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", "{ref}_{tech}.normalized.pedigree_filtering.info.out", "{ref}_{tech}.normalized.pedigree_filtering.sites"
      shell: """
             bcftools view {wildcards.ref}_{wildcards.tech}.normalized.sorted.bcf > {wildcards.ref}_{wildcards.tech}.normalized.sorted.vcf
             {input.con} -i {input.vector} -v {wildcards.ref}_{wildcards.tech}.normalized.sorted.vcf -p {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered > {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
@@ -159,21 +125,6 @@ rule pedigree_filter:
             bcftools index {output[0]}
             bcftools query -f '%CHROM:%POS0:%END:%REF:%ALT\t[%GT:]\n' {output[0]} > {output[2]}
      """
-
-rule na12878_counts:
-    input: "{ref}_{tech}.normalized.na12878.sorted.bcf"
-    output: "{ref}_{tech}.normalized.na12878.counts"
-    shell: """
-        bcftools +counts {input} > {output}
-    """
-
-rule na12878_extract_normalized:
-    input: vcf=_get_vcf, genome=_get_genome
-    output: "{ref}_{tech}.normalized.na12878.sorted.bcf"
-    shell: """
-        bcftools view -s NA12878 -O b {input.vcf} | bcftools view -O b -i 'GT[*]="alt"' | bcftools norm --multiallelic - --threads {threads} --output-type b --fasta-ref {input.genome} | bcftools sort --output-type b > {output}
-        bcftools index {output}
-    """
 
 rule subtract_all_vars_hq:
     input: hq=_get_hq, vars="merged_truth/{ref}/all_na12878_variants.bed"
@@ -183,31 +134,24 @@ rule subtract_all_vars_hq:
     """
 
 rule merge_beds:
-    input: expand( "{{ref}}_{tech}.normalized.na12878.sorted.bed",  tech=TECH)
-    output: "merged_truth/{ref}/all_na12878_variants.bed"
+    input: expand( "filtering/{{ref}}_{tech}.normalized.sorted.bed",  tech=TECH)
+    output: "merged_truth/{ref}/all_variants.bed"
     shell: """
         cat {input} | sort -k1,1 -k2,2n  > {output}
     """
 
 rule make_beds:
-    input:  bcf="{ref}_{tech}.normalized.na12878.sorted.bcf", genome=_get_genome
-    output: "{ref}_{tech}.normalized.na12878.sorted.bed"
+    input:  bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", genome=_get_genome
+    output: "filtering/{ref}_{tech}.normalized.sorted.bed"
     shell: """
         bcftools query -f '%CHROM\\t%POS0\\t%END\\n' {input.bcf}  > {output}
     """
          
 rule norm:
     input:  vcf=_get_vcf, genome=_get_genome
-    output: "{ref}_{tech}.normalized.sorted.bcf"
+    output: "filtering/{ref}_{tech}.normalized.sorted.bcf"
     threads: 8
     shell: """
         bcftools view --max-alleles 4 -i '(ILEN > -50 && ILEN < 50 || type="snp")' --output-type b {input.vcf} | bcftools norm --multiallelic - --threads {threads} --output-type b --fasta-ref {input.genome} - | bcftools sort --output-type b -o {output}
         bcftools index {output}
     """
-
-rule bt:
-     output: "concordance"
-     shell: """
-            cargo build --release --manifest-path ../code/concordance/Cargo.toml
-            mv ../code/concordance/target/release/concordance .
-     """
