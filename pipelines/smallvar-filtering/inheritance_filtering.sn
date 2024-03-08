@@ -109,19 +109,18 @@ rule make_tpvar_bed:
     """
 
 rule merge__filtered:
-    input: expand("filtering/{{ref}}_{tech}.normalized.pedigree_filtered.sorted.bcf", tech=TECH)
+    input: expand("filtering/{{ref}}_{tech}.normalized.pedigree_filtered_sorted.bcf", tech=TECH)
     output: "merged_truth/{ref}/palladium_merged_techs.bcf"
     shell: """
         bcftools concat -O b -a -d all {input} > {output}
     """
 
 rule pedigree_filter:
-     input: config['concordance'], vcf="filtering/{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
-     output: "filtering/{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", "{ref}_{tech}.normalized.pedigree_filtering.info.out", "{ref}_{tech}.normalized.pedigree_filtering.sites"
+     input: config['concordance'], bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
+     output: "filtering/{ref}_{tech}.normalized.pedigree_filtered_sorted.bcf", "filtering/{ref}_{tech}.normalized.pedigree_filtering.sites"
      shell: """
-            bcftools view {wildcards.ref}_{wildcards.tech}.normalized.sorted.bcf > {wildcards.ref}_{wildcards.tech}.normalized.sorted.vcf
-            {input.con} -i {input.vector} -v {wildcards.ref}_{wildcards.tech}.normalized.sorted.vcf -p {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered > {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
-            bcftools sort --output-type b {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.vcf > {output[0]}
+            {input.con} -i {input.vector} -v {input.bcf} -p filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered > filtering/{wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
+            bcftools sort --output-type b filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered.vcf > {output[0]}
             bcftools index {output[0]}
             bcftools query -f '%CHROM:%POS0:%END:%REF:%ALT\t[%GT:]\n' {output[0]} > {output[2]}
      """
