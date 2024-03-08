@@ -80,18 +80,18 @@ rule tag_sites:
     """
 
 rule count:
-    input: "filtering/{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf"
+    input: "filtering/{ref}_{tech}.normalized.pedigree_filtered_sorted.bcf"
     output: "filtering/{ref}_{tech}.normalized.pedigree_filtered.counts"
     shell: """
         bcftools +counts {input} > {output}
     """
 
 rule win_count:
-    input: bcf="filtering/{ref}_{tech}.normalized.pedigree_filtered.sorted.bcf", win=_get_win
-    output: "filtering/{ref}_{tech}.normalized.pedigree_filtered.counts.bed"
+    input: bcf="filtering/{ref}_{tech}.normalized.pedigree_filtered_sorted.bcf", win=_get_win
+    output: "filtering/{ref}_{tech}.normalized.pedigree_filtered_counts.bed"
     shell: """
-        bcftools view {input.bcf} > {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.sorted.vcf
-        bedtools intersect -c -a {input.win} -b {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered.sorted.vcf > {output}
+        bcftools view {input.bcf} > {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered_sorted.vcf
+        bedtools intersect -c -a {input.win} -b {wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtered_sorted.vcf > {output}
     """
 
 rule refine_hq_regions:
