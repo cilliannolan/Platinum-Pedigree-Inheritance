@@ -116,7 +116,7 @@ rule merge__filtered:
     """
 
 rule pedigree_filter:
-     input: config['concordance'], bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
+     input: con=config['concordance'], bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
      output: "filtering/{ref}_{tech}.normalized.pedigree_filtered_sorted.bcf", "filtering/{ref}_{tech}.normalized.pedigree_filtering.sites"
      shell: """
             {input.con} -i {input.vector} -v {input.bcf} -p filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered > filtering/{wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
