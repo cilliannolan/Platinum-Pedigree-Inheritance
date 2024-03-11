@@ -1,5 +1,5 @@
 REF  = "hg38"
-TECH = ["deepvariant_hifi", "clair3_hifi" "hifi_dnascope", "deepvariant_ilmn", "dragen_ilmn", "clair3_ont", "pav_assembly"]
+TECH = ["deepvariant_hifi", "clair3_hifi" "dnascope_hifi", "deepvariant_ilmn", "dragen_ilmn", "clair3_ont", "pav_assembly"]
 
 def _get_vec(wildcards):
     return config[wildcards.ref]["vec_{tech}".format(tech = wildcards.tech)]
