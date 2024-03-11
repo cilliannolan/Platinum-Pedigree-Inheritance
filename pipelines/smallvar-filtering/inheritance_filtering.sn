@@ -16,6 +16,11 @@ def _get_win(wildcards):
 def _get_hq(wildcards):
     return config[wildcards.ref]["hq_regions"]
 
+def _get_hap(wildcards):
+    config_lookup = "{parent}_{hap}".format(parent=wildcards.parent, hap=wildcards.hap)
+    return config[config_lookup]
+
+
 rule gather:
     input: expand("filtering/{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
@@ -24,7 +29,14 @@ rule gather:
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
      expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"] )
+     expand("merged_truth/{ref}/{parent}_{hap}.paf", ref=REF, parent=["NA12878", "NA12877"], hap=[1,2])
 
+rule aln haps:
+    input: asm=_get_hap, hap="merged_truth/{ref}/{parent}_resolver.haps.fasta"
+    output: "merged_truth/{ref}/{parent}_{hap}.paf"
+    shell: """
+        minimap {input.asm} {input.hap} -c -x asm5 --eqx {input.hap} > {output}
+    """
 
 rule build_overlap_haplotypes:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, regions="merged_truth/{ref}/{parent}_to_resolve.regions", resolver=config['resolver']
