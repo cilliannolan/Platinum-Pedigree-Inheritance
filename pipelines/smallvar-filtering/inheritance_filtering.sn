@@ -35,7 +35,7 @@ rule aln haps:
     input: asm=_get_hap, hap="merged_truth/{ref}/{parent}_resolver.haps.fasta"
     output: "merged_truth/{ref}/{parent}_{hap}.paf"
     shell: """
-        minimap {input.asm} {input.hap} -c -x asm5 --eqx {input.hap} > {output}
+        minimap2 -c -x asm5 --eqx {input.asm} {input.hap}  {input.hap} > {output}
     """
 
 rule build_overlap_haplotypes:
