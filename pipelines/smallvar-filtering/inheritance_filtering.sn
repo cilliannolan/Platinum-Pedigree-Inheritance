@@ -1,5 +1,5 @@
 REF  = "hg38"
-TECH = ["hifi", "ilmn", "ont", "assembly", "dragen", "clair3hifi"]
+TECH = ["deepvariant_hifi", "clair3_hifi" "hifi_dnascope", "deepvariant_ilmn", "dragen_ilmn", "clair3_ont", "pav_assembly"]
 
 def _get_vec(wildcards):
     return config[wildcards.ref]["vec_{tech}".format(tech = wildcards.tech)]
@@ -53,7 +53,7 @@ rule prep_compressed_vcf:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=_get_genome
     output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     shell: """
-        bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b |  bcftools sort -O z -o {output}
+        bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b | bcftools view  -e 'INFO/SC == 1 &  ( INFO/SOURCES ~ "assembly" | INFO/SOURCES ~ "dnascope")' - |  bcftools sort -O z -o {output}
         bcftools index {output[0]}
 
     """
