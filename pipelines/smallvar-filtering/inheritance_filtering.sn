@@ -28,7 +28,7 @@ rule gather:
      expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
-     expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"] )
+     expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}_{hap}.paf", ref=REF, parent=["NA12878", "NA12877"], hap=[1,2])
 
 rule aln haps:
