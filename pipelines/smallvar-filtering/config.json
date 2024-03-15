@@ -25,7 +25,8 @@
         "vec_dnascope-hifi": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "vec_pav-assembly": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/ceph.GRCh38.viterbi.csv",
         "1mb_win": "/home/zkronenberg/tools/palladium-genomes/pipelines/data/1mb-ref-GRCh38-windows.bed",
-        "hq_regions": "/home/zkronenberg/zk/palladium_genomes/zk_analysis/platinum-pedigree-small-variants-feb22-24/aux-files/high_confidence_regions.simple.bed"
+        "hq_regions": "/home/zkronenberg/zk/palladium_genomes/zk_analysis/platinum-pedigree-small-variants-feb22-24/aux-files/high_confidence_regions.simple.bed",
+        "odd_regions": "/pbi/vast-collections/palladium_genomes/zk_analysis/platinum-pedigree-small-variants-feb22-24/aux-files/GRCh38.oddRegions.bed.gz"
     },
     "concordance": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/concordance",
     "mash": "/home/zkronenberg/tools/PlatinumPedigree/code/rust/target/release/mash2vcf",
