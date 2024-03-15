@@ -29,9 +29,16 @@ rule gather:
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
      expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"]),
-     expand("merged_truth/{ref}/{parent}_{hap}.paf", ref=REF, parent=["NA12878", "NA12877"], hap=[1,2])
+     expand("merged_truth/{ref}/{parent}_merged.paf", ref=REF, parent=["NA12878", "NA12877"])
 
-rule aln haps:
+rule merge_haps:
+    input: expand("merged_truth/{ref}/{{parent}}_{hap}.paf", hap=[1,2])
+    output: "merged_truth/{ref}/{parent}_merged.paf"
+    shell: """
+        cat {input} > {output}
+    """
+
+rule aln_haps:
     input: asm=_get_hap, hap="merged_truth/{ref}/{parent}_resolver.haps.fasta"
     output: "merged_truth/{ref}/{parent}_{hap}.paf"
     shell: """
