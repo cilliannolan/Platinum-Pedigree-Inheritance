@@ -32,11 +32,18 @@ rule gather:
      expand("merged_truth/{ref}/{parent}_merged.paf", ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}.var_anno.json", ref=REF, parent=["NA12878", "NA12877"])
 
+rule remove_fails:
+    input: hq="merged_truth/{ref}/hq_regions.bed",  fails="merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed"
+    output: "merged_truth/{ref}/hq_regions_final.bed"
+    shell: """
+        bedtools subtract -a {input.hq} -b {input.fails} > {output}
+    """
+
 rule ovl_filter:
     input: ovlfilter=config['ovlfilter'], paf="merged_truth/{ref}/{parent}_merged.paf", json="merged_truth/{ref}/{parent}_resolver.variants.json"
     output: "merged_truth/{ref}/{parent}.var_anno.json"
     shell: """
-        {input.ovlfilter} --aln {input.paf} --json {input.json} --prefix "merged_truth/{wildcards.ref}/{wildcards.parent}
+        {input.ovlfilter} --aln {input.paf} --json {input.json} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}
     """
 
 rule merge_haps:
@@ -87,7 +94,7 @@ rule prep_compressed_vcf:
 
 rule create_vcf:
     input: mash=config['mash'], data="merged_truth/{ref}/mashed.txt"
-    output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf"
+    output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf", "merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed"
     shell: """
         {input.mash} --mashed {input.data} --samples NA12879,NA12881,NA12882,NA12883,NA12884,NA12885,NA12886,NA12887,NA12877,NA12878 --prefix merged_truth/{wildcards.ref}/ceph_small_variant_g2g3 --ik clair3_ont,clair3_hifi,deep_var_hifi,dnascope_hifi,deep_var_ilmn,dragen_ilmn,pav_asm
     """
@@ -123,7 +130,7 @@ rule win_count:
 
 rule refine_hq_regions:
     input: ped_var="merged_truth/{ref}/palladium_merged_techs.bed", hq="merged_truth/{ref}/hq_regions_no_vars.bed"
-    output: "merged_truth/{ref}/hq_regions_final.bed"
+    output: "merged_truth/{ref}/hq_regions.bed"
     shell: """
         cat {input.ped_var} {input.hq} | sort -k1,1 -k2,2n | bedtools merge -i - > {output}
     """
