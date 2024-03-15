@@ -32,7 +32,7 @@ rule gather:
      expand("merged_truth/{ref}/{parent}_merged.paf", ref=REF, parent=["NA12878", "NA12877"])
 
 rule merge_haps:
-    input: expand("merged_truth/{ref}/{{parent}}_{hap}.paf", hap=[1,2])
+    input: expand("merged_truth/{{ref}}/{{parent}}_{hap}.paf", hap=[1,2])
     output: "merged_truth/{ref}/{parent}_merged.paf"
     shell: """
         cat {input} > {output}
