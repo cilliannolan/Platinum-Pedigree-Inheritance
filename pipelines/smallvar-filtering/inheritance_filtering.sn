@@ -27,8 +27,8 @@ def _get_hap(wildcards):
 rule gather:
     input: expand("filtering/{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
-     expand("merged_truth/{ref}/all_variants.bed", ref=REF),
-     expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
+     expand("merged_truth/{ref}/all_na12878_variants.bed", ref=REF),
+     expand("merged_truth/{ref}/palladium_merged_techs_na12878.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
      expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"]),
