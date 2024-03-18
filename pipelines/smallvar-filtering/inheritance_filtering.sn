@@ -27,15 +27,13 @@ def _get_hap(wildcards):
 rule gather:
     input: expand("filtering/{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
-     expand("merged_truth/{ref}/all_variants.bed", ref=REF),
-     expand("merged_truth/{ref}/palladium_merged_techs.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
      expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}_merged.paf", ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}.var_anno.json", ref=REF, parent=["NA12878", "NA12877"])
 
-rule remove_fails_andodd:
+rule remove_fails_anno:
     input: hq="merged_truth/{ref}/hq_regions.bed",  fails="merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed", odd=_get_odd
     output: "merged_truth/{ref}/hq_regions_final.bed"
     shell: """
@@ -81,7 +79,6 @@ rule identify_overlaps:
     input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, region_fn=config['regions_for_resolver'], resolver=config['resolver']
     output: "merged_truth/{ref}/{parent}_resolver.ovls.txt", "merged_truth/{ref}/{parent}_resolver.ovls.bed"
     shell: """
-
         {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver -d
         sort merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.txt | perl -lane 'print "$F[0]\\t$F[1]\\t$F[1]"' | sort | uniq  > merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.bed
     """
@@ -92,7 +89,6 @@ rule prep_compressed_vcf:
     shell: """
         bcftools reheader -f {input.ref}.fai {input.vcf} |  bcftools view -f 'PASS' - -O b | bcftools view  -e 'INFO/SC == 1 &  ( INFO/SOURCES ~ "assembly" | INFO/SOURCES ~ "dnascope")' - |  bcftools sort -O z -o {output}
         bcftools index {output[0]}
-
     """
 
 rule create_vcf:
@@ -139,7 +135,7 @@ rule refine_hq_regions:
     """
 
 rule make_tpvar_bed:
-    input: bcf="merged_truth/{ref}/palladium_merged_techs.bcf", genome=_get_genome
+    input: bcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gzmerged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", genome=_get_genome
     output: "merged_truth/{ref}/palladium_merged_techs_na12878.bed"
     shell: """
         bcftools view -s NA12878 -i 'GT[*]="alt"' {input.bcf} |  bcftools query -f '%CHROM\\t%POS0\\t%END\\n' -  > {output}
