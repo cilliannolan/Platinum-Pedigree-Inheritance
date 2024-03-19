@@ -133,7 +133,7 @@ rule refine_hq_regions:
     input: ped_var="merged_truth/{ref}/all_na12878_variants_passing.bed", novar="merged_truth/{ref}/hq_regions_no_vars.bed", hq=_get_hq
     output: "merged_truth/{ref}/hq_regions.bed"
     shell: """
-        cat {input.ped_var} {input.novar} | sort -k1,1 -k2,2n | bedtools merge -i - | bedtools intersect -a - -b {input.hq} > {output}
+        cat {input.ped_var} {input.novar}  | sort -k1,1 -k2,2n | bedtools merge -i - | bedtools intersect -a - -b {input.hq} > {output}
     """
 
 rule make_tpvar_bed:
