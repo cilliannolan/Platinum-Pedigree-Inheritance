@@ -66,7 +66,7 @@ fn main() {
     let header = bcf.header().clone();
     let mut wheader: Header = Header::from_template(&header);
     wheader.remove_info(b"OVL");
-    wheader.push_record(br#"##INFO=<ID=OVL,Number=1,Type=String,Description="annotation for overlapping variants on the same haplotype">"#);
+    wheader.push_record(br#"##INFO=<ID=OVL,Number=.,Type=String,Description="annotation for overlapping variants on the same haplotype">"#);
 
     let mut outvcf = Writer::from_path(
         Path::new(&format!("{}.ovl_annotated.vcf", args.prefix)),
