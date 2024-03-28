@@ -1,12 +1,13 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read as IoRead;
 use std::path::Path;
+use std::{collections::HashMap, fmt::Debug};
 
 use clap::Parser;
 use log::LevelFilter;
 use rust_htslib::bcf::{Format, Header, Read, Reader, Writer};
 use serde::{Deserialize, Serialize};
+use serde_json::to_string;
 
 /// Annotate overlapping variants
 #[derive(Parser, Debug)]
@@ -64,7 +65,8 @@ fn main() {
     let mut bcf = Reader::from_path(args.data).expect("Error opening vcf file.");
     let header = bcf.header().clone();
     let mut wheader: Header = Header::from_template(&header);
-    wheader.push_record(br#"##INFO=<ID=OVL,Number=1,Type=String,Description="pass/fail info for overlapping variants on the same haplotype">"#);
+    wheader.remove_info(b"OVL");
+    wheader.push_record(br#"##INFO=<ID=OVL,Number=1,Type=String,Description="annotation for overlapping variants on the same haplotype">"#);
 
     let mut outvcf = Writer::from_path(
         Path::new(&format!("{}.ovl_annotated.vcf", args.prefix)),
@@ -85,10 +87,19 @@ fn main() {
         let lk = format!("{}:{}:{}:{}", chr, record.pos(), ref_allele, alt_allele);
 
         let mut new_record = record;
+
+
+        let mut info_field = record.info(b"OVL").string().unwrap().unwrap().clone();
+        info_field.push(b"pass/fail");
+        record.push_info_string(b"OVL", &info_field)
+
         outvcf.translate(&mut new_record);
         if anno_lookup.contains_key(&lk) {
             let payload = anno_lookup.get(&lk).unwrap().as_bytes();
-            new_record.push_info_string(b"OVL", &[payload]).unwrap();
+
+            let mut info_field = record.info(b"OVL").string().unwrap().unwrap().clone();
+            info_field.push(payload);
+            record.push_info_string(b"OVL", &info_field).unwrap();
         }
 
         outvcf.write(&new_record).unwrap();

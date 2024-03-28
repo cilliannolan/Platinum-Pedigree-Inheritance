@@ -171,7 +171,7 @@ fn main() {
             debug!("keeper variant {} on haplotype {}", vk, k);
             variant_anno.push(Anno {
                 key: vk.clone(),
-                anno: "HAP_SELECTED".to_string(),
+                anno: "HAP_PASS".to_string(),
             });
             variant_marker.insert(vk);
         }
@@ -182,7 +182,7 @@ fn main() {
         for v in v.vars {
             let vk = format!("{}:{}:{}:{}", v.seqid, v.start, v.ref_allele, v.alt_allele);
             if !variant_marker.contains(&vk) {
-                let mut tanno = "HAP_OVERLAP".to_string();
+                let mut tanno = "HAP_OVLP".to_string();
                 if v.ovl != OvlType::NoOvl {
                     tanno = "HAP_FAIL".to_string();
                 }
