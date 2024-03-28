@@ -90,8 +90,6 @@ fn main() {
 
         outvcf.translate(&mut new_record);
         if anno_lookup.contains_key(&lk) {
-            let mut info_field = new_record.info(b"OVL").string().unwrap().unwrap().clone();
-
             let payload = anno_lookup.get(&lk).unwrap().as_bytes();
 
             let mut info_field = new_record.info(b"OVL").string().unwrap().unwrap().clone();
