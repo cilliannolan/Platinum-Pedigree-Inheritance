@@ -91,12 +91,14 @@ fn main() {
         outvcf.translate(&mut new_record);
         if anno_lookup.contains_key(&lk) {
             let payload = anno_lookup.get(&lk).unwrap().as_bytes();
-
-            let mut info_field = new_record.info(b"OVL").string().unwrap().unwrap().clone();
-            info_field.push(payload);
-            new_record.push_info_string(b"OVL", &info_field).unwrap();
+            let mut source_string = if let Ok(Some(string)) = new_record.info(b"OVL").string() {
+                string.to_owned()
+            } else {
+                Default::default()
+            };
+            source_string.push(&payload);
+            new_record.push_info_string(b"OVL", &source_string).unwrap();
         }
-
         outvcf.write(&new_record).unwrap();
     }
 }
