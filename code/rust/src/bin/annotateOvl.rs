@@ -90,13 +90,13 @@ fn main() {
 
         outvcf.translate(&mut new_record);
         if anno_lookup.contains_key(&lk) {
-            let mut info_field = record.info(b"OVL").string().unwrap().unwrap().clone();
+            let mut info_field = new_record.info(b"OVL").string().unwrap().unwrap().clone();
 
             let payload = anno_lookup.get(&lk).unwrap().as_bytes();
 
-            let mut info_field = record.info(b"OVL").string().unwrap().unwrap().clone();
+            let mut info_field = new_record.info(b"OVL").string().unwrap().unwrap().clone();
             info_field.push(payload);
-            record.push_info_string(b"OVL", &info_field).unwrap();
+            new_record.push_info_string(b"OVL", &info_field).unwrap();
         }
 
         outvcf.write(&new_record).unwrap();
