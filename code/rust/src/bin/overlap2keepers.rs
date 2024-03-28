@@ -182,9 +182,14 @@ fn main() {
         for v in v.vars {
             let vk = format!("{}:{}:{}:{}", v.seqid, v.start, v.ref_allele, v.alt_allele);
             if !variant_marker.contains(&vk) {
+                let mut tanno = "HAP_OVERLAP".to_string();
+                if v.ovl != OvlType::NoOvl {
+                    tanno = "HAP_FAIL".to_string();
+                }
+
                 variant_anno.push(Anno {
                     key: vk,
-                    anno: "HAP_DESELECTED".to_string(),
+                    anno: tanno,
                 })
             }
         }
