@@ -51,7 +51,8 @@ fn main() {
         .init();
 
     let mut annotation_info: String = String::new();
-    let mut annotation_json = File::open(args.json).unwrap();
+    let mut annotation_json = File::open(&args.json)
+        .unwrap_or_else(|e| panic!("Failed to open file at {:?}. Error: {e:?}", args.json));
     annotation_json
         .read_to_string(&mut annotation_info)
         .unwrap();
@@ -76,7 +77,7 @@ fn main() {
     )
     .unwrap();
 
-    for record_result in bcf.records() {
+    for (record_number, record_result) in bcf.records().enumerate() {
         let record = record_result.expect("Fail to read record");
         let chr = std::str::from_utf8(header.rid2name(record.rid().unwrap()).expect("Invalid rid"))
             .unwrap();
@@ -87,17 +88,37 @@ fn main() {
         let lk = format!("{}:{}:{}:{}", chr, record.pos(), ref_allele, alt_allele);
 
         let mut new_record = record;
+        let name = String::from_utf8(new_record.id()).unwrap();
 
         outvcf.translate(&mut new_record);
-        if anno_lookup.contains_key(&lk) {
-            let payload = anno_lookup.get(&lk).unwrap().as_bytes();
+        if let Some(payload) = anno_lookup.get(&lk).map(|x| x.as_bytes()) {
             let mut source_string = if let Ok(Some(string)) = new_record.info(b"OVL").string() {
-                string.to_owned()
+                let slice = &string[..];
+                let seqs = slice
+                    .iter()
+                    .map(|x| std::str::from_utf8(x).unwrap())
+                    .map(std::borrow::ToOwned::to_owned)
+                    .collect::<Vec<_>>();
+                seqs
             } else {
-                Default::default()
+                vec![]
             };
-            source_string.push(&payload);
-            new_record.push_info_string(b"OVL", &source_string).unwrap();
+            log::trace!(
+                "OVL string before: {source_string:?} for record {name} at count {record_number}",
+            );
+            source_string.push(String::from_utf8(payload.to_owned()).unwrap());
+            log::trace!(
+                "OVL string after adding payload: {:?}",
+                source_string
+                    .iter()
+                    .map(|x| format!("{x:?}")) // std::str::from_utf8(x).map(std::borrow::ToOwned::to_owned).unwrap_or_else(|_| format!("{x:?}")))
+                    .collect::<Vec<_>>()
+            );
+            let new_tag = source_string
+                .iter()
+                .map(|x| x.as_bytes())
+                .collect::<Vec<_>>();
+            new_record.push_info_string(b"OVL", &new_tag[..]).unwrap();
         }
         outvcf.write(&new_record).unwrap();
     }
