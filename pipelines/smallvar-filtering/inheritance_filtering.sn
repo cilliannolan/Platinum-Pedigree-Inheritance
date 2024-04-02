@@ -186,6 +186,6 @@ rule norm:
     output: "filtering/{ref}_{tech}.normalized.sorted.bcf"
     threads: 8
     shell: """
-        bcftools view --max-alleles 4 -i '(ILEN > -50 && ILEN < 50 || type="snp")' --output-type b {input.vcf} | bcftools norm --multiallelic - --threads {threads} --output-type b --fasta-ref {input.genome} - | bcftools sort --output-type b -o {output}
+        bcftools view  -i '(ILEN > -50 && ILEN < 50 || type="snp")' --output-type b {input.vcf} | bcftools norm --multiallelic - --threads {threads} --output-type b --fasta-ref {input.genome} - | bcftools sort --output-type b -o {output}
         bcftools index {output}
     """
