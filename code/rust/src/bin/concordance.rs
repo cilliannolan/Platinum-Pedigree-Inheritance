@@ -1,12 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read as IoRead;
+use std::mem::{self, swap};
 use std::path::Path;
 
 use clap::Parser;
 use csv::ReaderBuilder;
 use edit_distance::edit_distance;
 use rust_htslib::bcf::header::HeaderView;
-use rust_htslib::bcf::record::GenotypeAllele;
+use rust_htslib::bcf::record::{Genotype, GenotypeAllele};
 use rust_htslib::bcf::{Format, Header, Read, Reader, Writer};
 
 /// Filter variants based on expected haplotypes
@@ -23,6 +24,12 @@ struct Args {
 
     #[arg(short, long)]
     prefix: String,
+
+    #[arg(short, long)]
+    father: String,
+
+    #[arg(short, long)]
+    mother: String,
 }
 
 const POSSIBLE_PATTERNS: [[i32; 4]; 15] = [
@@ -54,6 +61,8 @@ fn geno_conversion(geno: String) -> i32 {
         "1|0" => 1,
         "1/1" => 2,
         "1|1" => 2,
+        "./." => 3,
+        ".|." => 3,
         _ => 3,
     }
 }
@@ -219,6 +228,50 @@ fn get_iht_block<'a>(
     return None;
 }
 
+fn concordant(
+    parents: [[GenotypeAllele; 4]; 4],
+    haps: Vec<String>,
+    genos: Vec<GenotypeAllele>,
+) -> i8 {
+    for (i, c) in parents.iter().enumerate() {
+        let mut genovec: Vec<GenotypeAllele> = Vec::new();
+        for p in &haps {
+            let mut first_allele = c[allele_conversion(p.chars().nth(0).unwrap())];
+            let mut second_allele = c[allele_conversion(p.chars().nth(1).unwrap())];
+
+            if first_allele.index() > second_allele.index() {
+                swap(&mut first_allele, &mut second_allele);
+            }
+            genovec.push(first_allele);
+            genovec.push(second_allele);
+        }
+        if genovec == genos {
+            return i as i8;
+        }
+    }
+    return -1;
+}
+
+fn build_phased_haplotypes(
+    parents: [GenotypeAllele; 4],
+    haps: Vec<String>,
+    sample_names: Vec<String>,
+) -> HashMap<String, [GenotypeAllele; 2]> {
+    let mut sample_to_alleles: HashMap<String, [GenotypeAllele; 2]> = HashMap::new();
+
+    for (i, p) in haps.iter().enumerate() {
+        sample_to_alleles.insert(
+            sample_names[i].clone(),
+            [
+                parents[allele_conversion(p.chars().nth(0).unwrap())],
+                parents[allele_conversion(p.chars().nth(1).unwrap())],
+            ],
+        );
+    }
+
+    return sample_to_alleles;
+}
+
 fn main() {
     let args = Args::parse();
     let mut bcf = Reader::from_path(args.vcf).expect("Error opening vcf file.");
@@ -245,15 +298,12 @@ fn main() {
     let mut block_fail: i64 = 0;
     let mut failed: i64 = 0;
     let mut passed: i64 = 0;
+    let mut all_het: i64 = 0;
     let mut fail_counts: HashMap<String, i64> = HashMap::new();
 
     for (_i, record_result) in bcf.records().enumerate() {
         let mut record = record_result.expect("Fail to read record");
-        // only looking at bi-allelic sites
-        if record.alleles().len() != 2 {
-            println!("Warning: skipping multi-allelic variant!");
-            continue;
-        }
+
         let gts = record.genotypes().expect("Error reading genotypes");
         let chr = std::str::from_utf8(header.rid2name(record.rid().unwrap()).expect("Invalid rid"))
             .unwrap();
@@ -278,120 +328,103 @@ fn main() {
             Some(_) => {}
         }
         let mut onevec: String = "".to_string();
-        let mut genostring: String = "".to_string();
+        let mut genovec: Vec<GenotypeAllele> = Vec::new();
 
+        let mut failed_site = false;
+        let mut alt_count: usize = 0;
+        let mut het_count: usize = 0;
+
+        // samples are ordered by inheritance vector header
         for s in block.unwrap().samples.iter() {
             onevec = format!(
                 "{}{}",
                 onevec,
                 geno_conversion(gts.get(ped_idx_lookup[s]).to_string())
             );
-            genostring = format!("{},{}", genostring, gts.get(ped_idx_lookup[s]).to_string());
+            let gt = gts.get(ped_idx_lookup[s]);
+            let mut first_allele = gt[0];
+            let mut second_allele = gt[1];
+
+            if first_allele == GenotypeAllele::UnphasedMissing {
+                failed_site = true;
+                break;
+            }
+            // this will blow up unless the previous if statement is removed
+            if first_allele.index().unwrap() > 0 || second_allele.index().unwrap() > 0 {
+                alt_count += 1;
+            }
+
+            if first_allele.index().unwrap() != second_allele.index().unwrap() {
+                het_count += 1;
+            }
+
+            // ensuring that the alleles are ordered allowing us to test if we can get the right configuration.
+            if first_allele.index() > second_allele.index() {
+                swap(&mut first_allele, &mut second_allele);
+            }
+            genovec.push(first_allele);
+            genovec.push(second_allele);
         }
 
-        // this is a hom ref site for the individuals in the group of interest.
-        let novar = String::from_utf8(vec![b'0'; onevec.len()]).unwrap();
-        // this is a het site across the individuals in the group of interest.
-        let all_het = String::from_utf8(vec![b'1'; onevec.len()]).unwrap();
-
-        // no variants at this site or all hets which
-        if (onevec == novar) || (onevec == all_het) {
-            continue;
+        // if everything is het we fail the site
+        if het_count == block.unwrap().samples.len() {
+            all_het += 1;
+            failed_site = true;
         }
 
-        if !block.unwrap().patterns.contains_key(&onevec) {
+        // if the alt count is zero, we have a hom-ref site.
+        if alt_count == 0 {
+            failed_site = true;
+        }
+
+        let mother_gt = gts.get(ped_idx_lookup[&args.mother]);
+        let father_gt = gts.get(ped_idx_lookup[&args.father]);
+
+        let configurations = [
+            [father_gt[0], father_gt[1], mother_gt[0], mother_gt[1]],
+            [father_gt[1], father_gt[0], mother_gt[0], mother_gt[1]],
+            [father_gt[0], father_gt[1], mother_gt[1], mother_gt[0]],
+            [father_gt[1], father_gt[0], mother_gt[1], mother_gt[0]],
+        ];
+
+        let con = concordant(configurations, block.unwrap().parental_hap.clone(), genovec);
+
+        // unable to find a genotype configuration that matches the inheritance vector
+        if con == -1 {
+            failed_site = true;
+        }
+
+        if failed_site {
             failed += 1;
             inheritance[current_block_idx].failing_count += 1;
             *fail_counts.entry(onevec.clone()).or_insert(0) += 1;
 
             outfailvcf.write(&record).unwrap();
 
-            let mut oneoffcount = 0;
-            let mut closestmatch: String = "".to_string();
-
-            for (k, _v) in inheritance[current_block_idx].patterns.iter() {
-                let ed = edit_distance(&k, &onevec);
-                if ed == 1 {
-                    oneoffcount += 1;
-                    closestmatch = k.to_string();
-                }
-            }
-            if oneoffcount == 1 {
-                let mut violator = "NA".to_string();
-
-                for s in 0..onevec.len() {
-                    if onevec.as_bytes()[s] != closestmatch.as_bytes()[s] {
-                        violator = inheritance[current_block_idx].samples[s].clone();
-                    }
-                }
-
-                let has_nocall = onevec.find("3");
-                let nocall_violation = match has_nocall {
-                    Some(index) => true,
-                    None => false,
-                };
-
-                let mut indel = false;
-                let alleles = record.alleles();
-                if alleles[0].len() != alleles[1].len() {
-                    indel = true;
-                }
-
-                println!(
-                    "chr:{} pos:{} indel:{} vec:{} closest:{} violator:{} nocall:{}",
-                    chr,
-                    record.pos(),
-                    indel,
-                    onevec,
-                    closestmatch,
-                    violator,
-                    nocall_violation,
-                );
-            }
-
             continue;
         }
 
         let mut new_gts: Vec<GenotypeAllele> = Vec::new();
         let sample_count = usize::try_from(record.sample_count()).unwrap();
-        let phased_genos = block.unwrap().patterns.get(&onevec).unwrap();
+
+        let phased = build_phased_haplotypes(
+            configurations[con as usize],
+            block.unwrap().parental_hap.clone(),
+            block.unwrap().samples.clone(),
+        );
 
         for sample_index in 0..sample_count {
             let sample_name = String::from_utf8(header.samples()[sample_index].to_vec()).unwrap();
             let gt = gts.get(sample_index);
 
-            if block.unwrap().sample_lookups.contains_key(&sample_name) {
-                let gt_idx: usize = block
-                    .unwrap()
-                    .sample_lookups
-                    .get(&sample_name)
-                    .unwrap()
-                    .clone();
+            if phased.contains_key(&sample_name) {
+                let pg = phased.get(&sample_name).unwrap();
 
-                new_gts.push(GenotypeAllele::Phased(phased_genos[gt_idx][0]));
-                new_gts.push(GenotypeAllele::Phased(phased_genos[gt_idx][1]));
+                let a0: u32 = pg[0].index().unwrap();
+                let a1: u32 = pg[1].index().unwrap();
 
-                let new_geno: String =
-                    format!("{}/{}", phased_genos[gt_idx][0], phased_genos[gt_idx][1]);
-
-                /*
-                println!(
-                    "Setting genotypes: pos:{}, expected:{}, observed:{}, sample:{}, sample_index:{}, gt_idx:{}, samples:{:?}, genos:{:?}, geno_string{:?}",
-                    record.pos(),
-                    gt.to_string(),
-                    new_geno,
-                    sample_name,
-                    sample_index,
-                    gt_idx,
-                    block.unwrap().samples,
-                    phased_genos,
-                    genostring,
-                );
-                */
-
-                if geno_conversion(new_geno.clone()) != geno_conversion(gt.to_string()) {
-                    panic!("FATAL: trying to set the wrong genotype");
-                }
+                new_gts.push(GenotypeAllele::Unphased(a0 as i32));
+                new_gts.push(GenotypeAllele::Phased(a1 as i32));
             } else {
                 for g in gt.iter() {
                     new_gts.push(g.clone());
@@ -425,8 +458,8 @@ fn main() {
     }
 
     println!(
-        "not in block: {} passed: {} failed: {} ",
-        block_fail, passed, failed
+        "not in block: {} passed: {} failed: {} all-het: {} ",
+        block_fail, passed, failed, all_het
     );
 }
 
