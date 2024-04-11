@@ -342,6 +342,13 @@ fn main() {
                 geno_conversion(gts.get(ped_idx_lookup[s]).to_string())
             );
             let gt = gts.get(ped_idx_lookup[s]);
+
+            // We are only working with diploid regions
+            if gt.len() != 2 {
+                failed_site = true;
+                break;
+            }
+
             let mut first_allele = gt[0];
             let mut second_allele = gt[1];
 
