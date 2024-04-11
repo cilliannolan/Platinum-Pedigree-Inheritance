@@ -154,7 +154,7 @@ rule pedigree_filter:
      input: con=config['concordance'], bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", vector=_get_vec
      output: "filtering/{ref}_{tech}.normalized.pedigree_filtered_sorted.bcf", "filtering/{ref}_{tech}.normalized.pedigree_filtering.sites"
      shell: """
-            {input.con} -i {input.vector} -v {input.bcf} -p filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered > filtering/{wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
+            {input.con} --father NA12877 --mother NA12878 -i {input.vector} -v {input.bcf} -p filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered > filtering/{wildcards.ref}_{wildcards.tech}.normalized.pedigree_filtering.info.out
             bcftools sort --output-type b filtering/{wildcards.ref}_{wildcards.tech}.normalized_pedigree_filtered.vcf > {output[0]}
             bcftools index {output[0]}
             bcftools query -f '%CHROM:%POS0:%END:%REF:%ALT\t[%GT:]\n' {output[0]} > {output[1]}
