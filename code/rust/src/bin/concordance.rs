@@ -297,7 +297,11 @@ fn main() {
             let mut first_allele = gt[0];
             let mut second_allele = gt[1];
 
-            if first_allele == GenotypeAllele::UnphasedMissing {
+            if first_allele == GenotypeAllele::UnphasedMissing
+                || first_allele == GenotypeAllele::PhasedMissing
+                || second_allele == GenotypeAllele::UnphasedMissing
+                || second_allele == GenotypeAllele::PhasedMissing
+            {
                 failed_site = true;
                 break;
             }
