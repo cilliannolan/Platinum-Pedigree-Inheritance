@@ -32,25 +32,6 @@ struct Args {
     mother: String,
 }
 
-const POSSIBLE_PATTERNS: [[i32; 4]; 15] = [
-    //[ 0, 0, 0, 0], // dad homref mom homref
-    [0, 0, 0, 1], // dad homref mom het (1)
-    [0, 0, 1, 0], // dad homref mom het (2)
-    [0, 0, 1, 1], // dad homref mom homalt
-    [0, 1, 0, 0], // dad het mom homref (1)
-    [1, 0, 0, 0], // dad het mom homref (2)
-    [1, 0, 1, 0], // dad het mom het (1)
-    [0, 1, 0, 1], // dad het mom het (2)
-    [1, 0, 0, 1], // dad het mom het (3)
-    [0, 1, 1, 0], // dad het mom het (4)
-    [0, 1, 1, 1], // dad het mom homalt (1)
-    [1, 0, 1, 1], // dad het mom homalt (2)
-    [1, 1, 0, 0], // dad is homalt mom is homref
-    [1, 1, 0, 1], // dad is homalt mom is het (1)
-    [1, 1, 1, 0], // dad is homalt mom is het (2)
-    [1, 1, 1, 1], // dad is homalt mom is homalt
-];
-
 fn geno_conversion(geno: String) -> i32 {
     match geno.as_str() {
         "0/0" => 0,
@@ -88,45 +69,6 @@ struct InheritanceBlock {
     parental_hap: Vec<String>,
     patterns: HashMap<String, Vec<[i32; 2]>>,
     inherited_haps: HashSet<char>,
-}
-// returns a HashMap were the key is a simplified genotype string (0=homref,1=het,2=homalt), and the corresponding phase
-fn okay_genotypes(iht: &InheritanceBlock) -> HashMap<String, Vec<[i32; 2]>> {
-    let mut lookup: HashMap<String, Vec<[i32; 2]>> = HashMap::new();
-    // possible genotypes
-    for i in POSSIBLE_PATTERNS {
-        let mut onevec: String = "".to_string();
-        let mut phased_genotypes: Vec<[i32; 2]> = Vec::new();
-
-        // possible haplotype configurations
-        for j in &iht.parental_hap {
-            let possible_geno = format!(
-                "{}|{}",
-                i[allele_conversion(j.chars().nth(0).unwrap())],
-                i[allele_conversion(j.chars().nth(1).unwrap())]
-            );
-            phased_genotypes.push([
-                i[allele_conversion(j.chars().nth(0).unwrap())],
-                i[allele_conversion(j.chars().nth(1).unwrap())],
-            ]);
-
-            onevec = format!("{}{}", onevec, geno_conversion(possible_geno))
-        }
-
-        if lookup.contains_key(&onevec) {
-            let seen_phase = lookup.get(&onevec).unwrap();
-            for (g1, g2) in seen_phase.iter().zip(phased_genotypes.iter()) {
-                if g1 != g2 {
-                    println!(
-                        "WARNING disagreement in phase: {} {:?} {:?}",
-                        onevec, seen_phase, phased_genotypes
-                    );
-                }
-            }
-        } else {
-            lookup.insert(onevec, phased_genotypes);
-        }
-    }
-    return lookup;
 }
 
 impl std::fmt::Display for InheritanceBlock {
@@ -195,7 +137,6 @@ fn parse_inht(inht_fn: String) -> Vec<InheritanceBlock> {
             println!("Warning skipping block missing both parents {}", ihtblock);
             continue;
         }
-        ihtblock.patterns = okay_genotypes(&ihtblock);
         println!("{}", ihtblock);
         inht_info.push(ihtblock);
     }
@@ -214,14 +155,14 @@ fn header_to_idx(h: &HeaderView) -> HashMap<String, usize> {
 }
 
 fn get_iht_block<'a>(
-    ihts: &'a Vec<InheritanceBlock>,
+    ihts: &'a mut Vec<InheritanceBlock>,
     chr: &str,
     pos: i32,
     current: &mut usize,
-) -> Option<&'a InheritanceBlock> {
+) -> Option<&'a mut InheritanceBlock> {
     for i in *current..ihts.len() {
         if (ihts[i].chrom == chr) && (pos >= ihts[i].start) && (pos <= ihts[i].end) {
-            return Some(&ihts[i]);
+            return Some(&mut ihts[i]);
         }
         *current += 1;
     }
@@ -230,12 +171,12 @@ fn get_iht_block<'a>(
 
 fn concordant(
     parents: [[GenotypeAllele; 4]; 4],
-    haps: Vec<String>,
+    block: &InheritanceBlock,
     genos: Vec<GenotypeAllele>,
 ) -> i8 {
     for (i, c) in parents.iter().enumerate() {
         let mut genovec: Vec<GenotypeAllele> = Vec::new();
-        for p in &haps {
+        for p in &block.parental_hap {
             let mut first_allele = c[allele_conversion(p.chars().nth(0).unwrap())];
             let mut second_allele = c[allele_conversion(p.chars().nth(1).unwrap())];
 
@@ -253,18 +194,19 @@ fn concordant(
 }
 
 fn build_phased_haplotypes(
-    parents: [GenotypeAllele; 4],
-    haps: Vec<String>,
-    sample_names: Vec<String>,
+    parents: &[GenotypeAllele; 4],
+    block: &InheritanceBlock,
 ) -> HashMap<String, [GenotypeAllele; 2]> {
     let mut sample_to_alleles: HashMap<String, [GenotypeAllele; 2]> = HashMap::new();
 
-    for (i, p) in haps.iter().enumerate() {
+    let sample_names = block.samples.clone();
+
+    for (i, p) in block.parental_hap.iter().enumerate() {
         sample_to_alleles.insert(
             sample_names[i].clone(),
             [
-                parents[allele_conversion(p.chars().nth(0).unwrap())],
-                parents[allele_conversion(p.chars().nth(1).unwrap())],
+                parents[allele_conversion((*p).chars().nth(0).unwrap())],
+                parents[allele_conversion((*p).chars().nth(1).unwrap())],
             ],
         );
     }
@@ -309,8 +251,8 @@ fn main() {
             .unwrap();
         let mut current_block_idx: usize = 0;
 
-        let block = get_iht_block(
-            &inheritance,
+        let mut block = get_iht_block(
+            &mut inheritance,
             chr,
             record.pos().try_into().unwrap(),
             &mut current_block_idx,
@@ -327,20 +269,23 @@ fn main() {
             }
             Some(_) => {}
         }
-        let mut onevec: String = "".to_string();
-        let mut genovec: Vec<GenotypeAllele> = Vec::new();
 
+        let mut genovec: Vec<GenotypeAllele> = Vec::new();
         let mut failed_site = false;
         let mut alt_count: usize = 0;
         let mut het_count: usize = 0;
 
+        let samples = block.as_mut().unwrap().samples.clone();
+
+        let mut failed_vcf_record_processing = |current_block: &mut InheritanceBlock| {
+            failed += 1;
+            current_block.failing_count += 1;
+            *fail_counts.entry("".to_string()).or_insert(0) += 1;
+            outfailvcf.write(&record).unwrap();
+        };
+
         // samples are ordered by inheritance vector header
-        for s in block.unwrap().samples.iter() {
-            onevec = format!(
-                "{}{}",
-                onevec,
-                geno_conversion(gts.get(ped_idx_lookup[s]).to_string())
-            );
+        for s in samples.iter() {
             let gt = gts.get(ped_idx_lookup[s]);
 
             // We are only working with diploid regions
@@ -378,6 +323,11 @@ fn main() {
             failed_site = true;
         }
 
+        if failed_site {
+            failed_vcf_record_processing(block.as_mut().unwrap());
+            continue;
+        }
+
         let mother_gt = gts.get(ped_idx_lookup[&args.mother]);
         let father_gt = gts.get(ped_idx_lookup[&args.father]);
 
@@ -396,36 +346,29 @@ fn main() {
         parent_allele_count.insert(mother_gt[1]);
 
         // if everything is het we check that the parent alleles are the same too.
-        if het_count == block.unwrap().samples.len() && parent_allele_count.len() == 2 {
+        if het_count == samples.len() && parent_allele_count.len() == 2 {
             all_het += 1;
             failed_site = true;
         }
 
-        let con = concordant(configurations, block.unwrap().parental_hap.clone(), genovec);
+        let con = concordant(configurations, &block.as_ref().unwrap(), genovec);
 
         // unable to find a genotype configuration that matches the inheritance vector
         if con == -1 {
             failed_site = true;
+            failed_vcf_record_processing(block.as_mut().unwrap());
         }
 
         if failed_site {
-            failed += 1;
-            inheritance[current_block_idx].failing_count += 1;
-            *fail_counts.entry(onevec.clone()).or_insert(0) += 1;
-
-            outfailvcf.write(&record).unwrap();
-
+            failed_vcf_record_processing(block.as_mut().unwrap());
             continue;
         }
 
         let mut new_gts: Vec<GenotypeAllele> = Vec::new();
         let sample_count = usize::try_from(record.sample_count()).unwrap();
 
-        let phased = build_phased_haplotypes(
-            configurations[con as usize],
-            block.unwrap().parental_hap.clone(),
-            block.unwrap().samples.clone(),
-        );
+        let phased =
+            build_phased_haplotypes(&configurations[con as usize], &block.as_ref().unwrap());
 
         for sample_index in 0..sample_count {
             let sample_name = String::from_utf8(header.samples()[sample_index].to_vec()).unwrap();
