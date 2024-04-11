@@ -366,12 +366,6 @@ fn main() {
             genovec.push(second_allele);
         }
 
-        // if everything is het we fail the site
-        if het_count == block.unwrap().samples.len() {
-            all_het += 1;
-            failed_site = true;
-        }
-
         // if the alt count is zero, we have a hom-ref site.
         if alt_count == 0 {
             failed_site = true;
@@ -380,12 +374,25 @@ fn main() {
         let mother_gt = gts.get(ped_idx_lookup[&args.mother]);
         let father_gt = gts.get(ped_idx_lookup[&args.father]);
 
+        let mut parent_allele_count: HashSet<GenotypeAllele> = HashSet::new();
+
         let configurations = [
             [father_gt[0], father_gt[1], mother_gt[0], mother_gt[1]],
             [father_gt[1], father_gt[0], mother_gt[0], mother_gt[1]],
             [father_gt[0], father_gt[1], mother_gt[1], mother_gt[0]],
             [father_gt[1], father_gt[0], mother_gt[1], mother_gt[0]],
         ];
+
+        parent_allele_count.insert(father_gt[0]);
+        parent_allele_count.insert(father_gt[1]);
+        parent_allele_count.insert(mother_gt[0]);
+        parent_allele_count.insert(mother_gt[1]);
+
+        // if everything is het we check that the parent alleles are the same too.
+        if het_count == block.unwrap().samples.len() && parent_allele_count.len() == 2 {
+            all_het += 1;
+            failed_site = true;
+        }
 
         let con = concordant(configurations, block.unwrap().parental_hap.clone(), genovec);
 
