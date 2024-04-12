@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::Read as IoRead;
 use std::mem::{self, swap};
 use std::path::Path;
+use std::str;
 
 use clap::Parser;
 use csv::ReaderBuilder;
@@ -214,6 +215,30 @@ fn build_phased_haplotypes(
     return sample_to_alleles;
 }
 
+fn reorder_alleles(alleles: Vec<&[u8]>) -> (HashMap<usize, usize>, Vec<&[u8]>) {
+    let mut svec: Vec<(&str, usize)> = Vec::new();
+    let mut allele_index_lookup = HashMap::new();
+    let mut new_alleles: Vec<&[u8]> = Vec::new();
+    new_alleles.push(alleles[0]);
+
+    for (idx, alt) in alleles.iter().enumerate() {
+        svec.push((str::from_utf8(alt).unwrap().clone(), idx));
+    }
+    svec.sort_by_key(|x| x.0);
+
+    // reference never gets remapped
+    allele_index_lookup.insert(0, 0);
+
+    for (idx, tup) in svec.iter().enumerate() {
+        if tup.1 == 0 {
+            continue;
+        }
+        new_alleles.push(tup.0.as_bytes());
+        allele_index_lookup.insert(tup.1, idx + 1);
+    }
+    return (allele_index_lookup, new_alleles);
+}
+
 fn main() {
     let args = Args::parse();
     let mut bcf = Reader::from_path(args.vcf).expect("Error opening vcf file.");
@@ -245,6 +270,11 @@ fn main() {
 
     for (_i, record_result) in bcf.records().enumerate() {
         let mut record = record_result.expect("Fail to read record");
+        let mut newrecord = record.clone();
+
+        let alleles = record.alleles();
+
+        let reordered_alleles = reorder_alleles(alleles);
 
         let gts = record.genotypes().expect("Error reading genotypes");
         let chr = std::str::from_utf8(header.rid2name(record.rid().unwrap()).expect("Invalid rid"))
@@ -381,8 +411,11 @@ fn main() {
             if phased.contains_key(&sample_name) {
                 let pg = phased.get(&sample_name).unwrap();
 
-                let a0: u32 = pg[0].index().unwrap();
-                let a1: u32 = pg[1].index().unwrap();
+                let mut a0: usize = pg[0].index().unwrap().try_into().unwrap();
+                let mut a1: usize = pg[1].index().unwrap().try_into().unwrap();
+
+                a0 = *reordered_alleles.0.get(&a0).unwrap();
+                a1 = *reordered_alleles.0.get(&a1).unwrap();
 
                 new_gts.push(GenotypeAllele::Unphased(a0 as i32));
                 new_gts.push(GenotypeAllele::Phased(a1 as i32));
@@ -393,10 +426,11 @@ fn main() {
             }
         }
 
-        record.push_genotypes(&new_gts).unwrap();
+        newrecord.push_genotypes(&new_gts).unwrap();
+        newrecord.set_alleles(&reordered_alleles.1).unwrap();
 
         passed += 1;
-        outvcf.write(&record).unwrap();
+        outvcf.write(&newrecord).unwrap();
         inheritance[current_block_idx].passing_count += 1;
     }
 
