@@ -234,7 +234,7 @@ fn reorder_alleles(alleles: Vec<&[u8]>) -> (HashMap<usize, usize>, Vec<&[u8]>) {
             continue;
         }
         new_alleles.push(tup.0.as_bytes());
-        allele_index_lookup.insert(tup.1, idx + 1);
+        allele_index_lookup.insert(tup.1, idx);
     }
     return (allele_index_lookup, new_alleles);
 }
