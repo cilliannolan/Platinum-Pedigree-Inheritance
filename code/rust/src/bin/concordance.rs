@@ -216,25 +216,25 @@ fn build_phased_haplotypes(
 }
 
 fn reorder_alleles(alleles: Vec<&[u8]>) -> (HashMap<usize, usize>, Vec<&[u8]>) {
-    let mut svec: Vec<(&str, usize)> = Vec::new();
+    let mut alts: Vec<(&str, usize)> = Vec::new();
     let mut allele_index_lookup = HashMap::new();
     let mut new_alleles: Vec<&[u8]> = Vec::new();
     new_alleles.push(alleles[0]);
 
     for (idx, alt) in alleles.iter().enumerate() {
-        svec.push((str::from_utf8(alt).unwrap().clone(), idx));
-    }
-    svec.sort_by_key(|x| x.0);
-
-    // reference never gets remapped
-    allele_index_lookup.insert(0, 0);
-
-    for (idx, tup) in svec.iter().enumerate() {
-        if tup.1 == 0 {
+        if idx == 0 {
             continue;
         }
+        alts.push((str::from_utf8(alt).unwrap().clone(), idx));
+    }
+    alts.sort_by_key(|x| x.0);
+
+    // inserting reference (which is always zero)
+    allele_index_lookup.insert(0, 0);
+
+    for (idx, tup) in alts.iter().enumerate() {
         new_alleles.push(tup.0.as_bytes());
-        allele_index_lookup.insert(tup.1, idx);
+        allele_index_lookup.insert(tup.1, idx + 1);
     }
     return (allele_index_lookup, new_alleles);
 }
