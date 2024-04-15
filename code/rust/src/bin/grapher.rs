@@ -118,18 +118,19 @@ impl Var {
     }
 }
 
-fn get_end(pos: i64, vtype: VarType, alleles: Vec<&[u8]>) -> i64 {
+fn get_end(pos: i64, vtype: VarType, alleles: Vec<&[u8]>, alt_idx: usize) -> i64 {
+    assert!(alleles.len() > alt_idx);
     if vtype == VarType::Snv || vtype == VarType::Insertion {
         return pos;
     }
-    return pos + (alleles[0].len() - alleles[1].len()) as i64;
+    return pos + (alleles[0].len() - alleles[alt_idx].len()) as i64;
 }
 
-fn get_var_type(alleles: Vec<&[u8]>) -> VarType {
-    assert!(alleles.len() == 2);
-    if alleles[0].len() == alleles[1].len() && alleles[1].len() == 1 {
+fn get_var_type(alleles: Vec<&[u8]>, alt_idx: usize) -> VarType {
+    assert!(alleles.len() > alt_idx);
+    if alleles[0].len() == alleles[alt_idx].len() && alleles[alt_idx].len() == 1 {
         return VarType::Snv;
-    } else if alleles[0].len() > alleles[1].len() {
+    } else if alleles[0].len() > alleles[alt_idx].len() {
         return VarType::Deletion;
     } else {
         return VarType::Insertion;
@@ -226,20 +227,24 @@ fn load_data(
     for record in bcf.records() {
         let r = record.unwrap();
 
-        let vtype = get_var_type(r.alleles());
-        let end = get_end(r.pos(), vtype.clone(), r.alleles());
-
         let gt = r
             .genotypes()
             .unwrap()
             .get(*sample_lookup.get(&args.sample).unwrap());
 
         for vindex in 0..2 {
-            if (gt[vindex] == GenotypeAllele::Unphased(0)
-                || gt[vindex] == GenotypeAllele::Phased(0))
+            // phased or unphased reference alleles are skipped, as they do not mutate reference fasta
+            if gt[vindex] == GenotypeAllele::Unphased(0) || gt[vindex] == GenotypeAllele::Phased(0)
             {
                 continue;
             }
+
+            let ref_idx = 0 as usize;
+            let alt_idx = gt[vindex].index().unwrap() as usize;
+
+            let vtype = get_var_type(r.alleles(), alt_idx);
+            let end = get_end(r.pos(), vtype.clone(), r.alleles(), alt_idx);
+
             let mut last_idx: usize = variants[vindex].len() - 1;
             let current_idx: usize = variants[vindex].len();
 
@@ -248,8 +253,8 @@ fn load_data(
                 vt: vtype.clone(),
                 start: r.pos(),
                 end: end,
-                ref_allele: (*str::from_utf8(r.alleles()[0]).unwrap()).to_string(),
-                alt_allele: (*str::from_utf8(r.alleles()[1]).unwrap()).to_string(),
+                ref_allele: (*str::from_utf8(r.alleles()[ref_idx]).unwrap()).to_string(),
+                alt_allele: (*str::from_utf8(r.alleles()[alt_idx]).unwrap()).to_string(),
                 ovl: OvlType::NoOvl,
                 next_vars: Vec::new(),
                 idx: current_idx,
