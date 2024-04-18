@@ -20,6 +20,8 @@ struct Args {
     ik: String,
     #[arg(short, long)]
     prefix: String,
+    #[arg(short, long)]
+    fai: String,
     #[arg(short = 'v', long = "verbose", action = clap::ArgAction::Count, default_value_t = 0)]
     verbosity: u8,
 }
@@ -57,6 +59,23 @@ impl fmt::Display for VcfRecord {
     }
 }
 
+struct Contig {
+    id: String,
+    len: String,
+}
+
+fn parse_contigs(fai: String) -> Vec<Contig> {
+    let mut result: Vec<Contig> = Vec::new();
+    for line in read_to_string(fai).unwrap().lines() {
+        let fields: Vec<String> = line.split_whitespace().map(str::to_string).collect();
+        result.push(Contig {
+            id: fields.get(0).unwrap().clone(),
+            len: fields.get(1).unwrap().clone(),
+        });
+    }
+    return result;
+}
+
 fn main() {
     let mut failed_sites: i64 = 0;
     let mut passed_sites: i64 = 0;
@@ -68,6 +87,8 @@ fn main() {
         1 => LevelFilter::Debug,
         _ => LevelFilter::Trace,
     };
+
+    let contigs = parse_contigs(args.fai);
 
     env_logger::builder()
         .format_timestamp_millis()
@@ -93,6 +114,10 @@ fn main() {
         "##INFO=<ID=TYPE,Number=1,Type=String,Description=\"Allele Type (SNV or INDEL)\">\n",
     );
     header.push_str("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
+    for c in contigs {
+        header.push_str(&format!("##CONTIG=<ID={},length={}>\n", c.id, c.len));
+    }
+
     header.push_str("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t");
 
     let samples: Vec<String> = args.samples.split(",").map(str::to_string).collect();
