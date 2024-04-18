@@ -27,7 +27,7 @@ def _get_hap(wildcards):
 rule gather:
     input: expand("filtering/{ref}_{tech}.normalized.pedigree_filtered.counts", ref=REF, tech=TECH),
      expand("merged_truth/{ref}/palladium_merged_techs.bcf", ref=REF),
-     expand("merged_truth/{ref}/all_na12878_variants.bed", ref=REF),
+     expand("merged_truth/{ref}/all_variants.bed", ref=REF),
      expand("merged_truth/{ref}/all_na12878_variants_passing.bed", ref=REF),
      expand("merged_truth/{ref}/hq_regions_final.bed",  ref=REF),
      expand("merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=REF),
@@ -140,7 +140,7 @@ rule make_tpvar_bed:
     input: bcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", genome=_get_genome
     output: "merged_truth/{ref}/all_na12878_variants_passing.bed"
     shell: """
-        bcftools view -s NA12878 -i 'GT[*]="alt"' {input.bcf} |  bcftools query -f '%CHROM\\t%POS0\\t%END\\n' -  > {output}
+        bcftools view -s NA12878 {input.bcf} | bcftools view -i 'GT[*]="alt"' - |   bcftools query -f '%CHROM\\t%POS0\\t%END\\n' -  > {output}
     """
 
 rule merge_filtered:
@@ -161,24 +161,24 @@ rule pedigree_filter:
      """
 
 rule subtract_all_vars_hq:
-    input: hq=_get_hq, vars="merged_truth/{ref}/all_na12878_variants.bed"
+    input: hq=_get_hq, vars="merged_truth/{ref}/all_variants.bed"
     output: "merged_truth/{ref}/hq_regions_no_vars.bed"
     shell: """
         bedtools subtract -a {input.hq} -b {input.vars} > {output}
     """
 
 rule merge_beds:
-    input: expand( "filtering/{{ref}}_{tech}.normalized.sorted.na12878.bed",  tech=TECH)
-    output: "merged_truth/{ref}/all_na12878_variants.bed"
+    input: expand( "filtering/{{ref}}_{tech}.normalized.sorted.bed",  tech=TECH)
+    output: "merged_truth/{ref}/all_variants.bed"
     shell: """
-        cat {input} | grep -v "pav-assembly" | grep -v "dnascope-hifi" |  sort -k1,1 -k2,2n  > {output}
+        cat {input}  |  sort -k1,1 -k2,2n  > {output}
     """
 
 rule make_beds:
     input:  bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", genome=_get_genome
-    output: "filtering/{ref}_{tech}.normalized.sorted.na12878.bed"
+    output: "filtering/{ref}_{tech}.normalized.sorted.bed"
     shell: """
-          bcftools view -s NA12878 -i 'GT[*]="alt"' {input.bcf} |  bcftools query -f '%CHROM\\t%POS0\\t%END\\t{wildcards.tech}\\n' -  > {output}
+        bcftools query -f '%CHROM\\t%POS0\\t%END\\t{wildcards.tech}\\n' {input}  > {output}
     """
          
 rule norm:
