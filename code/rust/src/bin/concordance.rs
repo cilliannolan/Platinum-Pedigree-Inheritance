@@ -31,6 +31,9 @@ struct Args {
 
     #[arg(short, long)]
     mother: String,
+    /// Minimum quality score
+    #[arg(short, long, default_value_t = 20.0)]
+    qual: f32,
 }
 
 fn geno_conversion(geno: String) -> i32 {
@@ -313,6 +316,12 @@ fn main() {
             *fail_counts.entry("".to_string()).or_insert(0) += 1;
             outfailvcf.write(&record).unwrap();
         };
+
+        let qual = record.qual();
+        if qual < args.qual {
+            failed_vcf_record_processing(block.as_mut().unwrap());
+            continue;
+        }
 
         // samples are ordered by inheritance vector header
         for s in samples.iter() {
