@@ -175,7 +175,7 @@ rule merge_beds:
     """
 
 rule make_beds:
-    input:  bcf="filtering/{ref}_{tech}.normalized.sorted.bcf", genome=_get_genome
+    input:  bcf="filtering/{ref}_{tech}.normalized.sorted.bcf"
     output: "filtering/{ref}_{tech}.normalized.sorted.bed"
     shell: """
         bcftools query -f '%CHROM\\t%POS0\\t%END\\t{wildcards.tech}\\n' {input}  > {output}
