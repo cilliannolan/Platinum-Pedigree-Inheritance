@@ -94,7 +94,7 @@ rule identify_overlaps:
     """
 
 rule prep_compressed_vcf:
-    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf", ref=_get_genome
+    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf"
     output: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     shell: """
         bcftools view -f 'PASS' - -O b {input} |  bcftools sort -O z -o {output}
