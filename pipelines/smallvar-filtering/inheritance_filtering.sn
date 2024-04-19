@@ -72,7 +72,7 @@ rule aln_haps:
     """
 
 rule build_overlap_haplotypes:
-    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz", ref=_get_genome, regions="merged_truth/{ref}/{parent}_to_resolve.regions", resolver=config['resolver']
+    input: vcf="merged_truth/{ref}/ceph_small_variant_g2g3_nolarge_indels.vcf.gz", ref=_get_genome, regions="merged_truth/{ref}/{parent}_to_resolve.regions", resolver=config['resolver']
     output: "merged_truth/{ref}/{parent}_resolver.haps.fasta", "merged_truth/{ref}/{parent}_resolver.variants.json"
     shell: """
         {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.regions} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver
