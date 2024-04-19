@@ -269,6 +269,10 @@ fn main() {
     let mut failed: i64 = 0;
     let mut passed: i64 = 0;
     let mut all_het: i64 = 0;
+    let mut all_ref: i64 = 0;
+    let mut no_con: i64 = 0;
+    let mut nocall_geno: i64 = 0;
+    let mut lowq: i64 = 0;
     let mut fail_counts: HashMap<String, i64> = HashMap::new();
 
     for (_i, record_result) in bcf.records().enumerate() {
@@ -320,6 +324,7 @@ fn main() {
         let qual = record.qual();
         if qual < args.qual {
             failed_vcf_record_processing(block.as_mut().unwrap());
+            lowq += 1;
             continue;
         }
 
@@ -341,6 +346,7 @@ fn main() {
                 || second_allele == GenotypeAllele::UnphasedMissing
                 || second_allele == GenotypeAllele::PhasedMissing
             {
+                nocall_geno += 1;
                 failed_site = true;
                 break;
             }
@@ -363,6 +369,7 @@ fn main() {
 
         // if the alt count is zero, we have a hom-ref site.
         if alt_count == 0 {
+            all_ref += 1;
             failed_site = true;
         }
 
@@ -399,7 +406,7 @@ fn main() {
         // unable to find a genotype configuration that matches the inheritance vector
         if con == -1 {
             failed_site = true;
-            failed_vcf_record_processing(block.as_mut().unwrap());
+            no_con += 1;
         }
 
         if failed_site {
@@ -462,8 +469,8 @@ fn main() {
     }
 
     println!(
-        "not in block: {} passed: {} failed: {} all-het: {} ",
-        block_fail, passed, failed, all_het
+        "not in block: {} passed: {} failed: {} all-het: {} all-ref: {} non-concordant: {} nocall-geno: {} lq: {} ",
+        block_fail, passed, failed, all_het, all_ref, no_con, nocall_geno, lowq
     );
 }
 
