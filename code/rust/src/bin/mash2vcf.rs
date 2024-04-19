@@ -115,7 +115,7 @@ fn main() {
     );
     header.push_str("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
     for c in contigs {
-        header.push_str(&format!("##CONTIG=<ID={},length={}>\n", c.id, c.len));
+        header.push_str(&format!("##contig=<ID={},length={}>\n", c.id, c.len));
     }
 
     header.push_str("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t");
