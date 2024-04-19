@@ -43,7 +43,7 @@ rule remove_fails_anno:
     """
 
 rule remove_large_indels:
-    input: merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
+    input: "merged_truth/{ref}/ceph_small_variant_g2g3.vcf.gz"
     output: "merged_truth/{ref}/large_indels.bed", "merged_truth/{ref}/ceph_small_variant_g2g3_nolarge_indels.vcf.gz"
     shell: """
         bcftools view -i 'ILEN < -50 || ILEN > 50' {input} | bcftools query -f '%CHROM\\t%POS0\\t%END\\n' - > {output[0]}
