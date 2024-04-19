@@ -47,7 +47,7 @@ rule remove_large_indels:
     output: "merged_truth/{ref}/large_indels.bed", "merged_truth/{ref}/ceph_small_variant_g2g3_nolarge_indels.vcf.gz"
     shell: """
         bcftools view -i 'ILEN < -50 || ILEN > 50' {input} | bcftools query -f '%CHROM\\t%POS0\\t%END\\n' - > {output[0]}
-        bcftools -i '(ILEN > -51 && ILEN < 51 || type="snp")' -O z {input} > {output[1]}
+        bcftools view -i '(ILEN > -51 && ILEN < 51 || type="snp")' -O z {input} > {output[1]}
     """
 
 rule ovl_filter:
