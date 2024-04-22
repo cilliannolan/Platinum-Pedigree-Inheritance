@@ -468,9 +468,11 @@ fn main() {
         );
     }
 
+    let con_rate = (passed as f64) / (passed + no_con) as f64;
+
     println!(
-        "not in block: {} passed: {} failed: {} all-het: {} all-ref: {} non-concordant: {} nocall-geno: {} lq: {} ",
-        block_fail, passed, failed, all_het, all_ref, no_con, nocall_geno, lowq
+        "not in block: {} passed: {} failed: {} all-het: {} all-ref: {} non-concordant: {} nocall-geno: {} lq: {} concordance-rate: {} ",
+        block_fail, passed, failed, all_het, all_ref, no_con, nocall_geno, lowq, con_rate
     );
 }
 
