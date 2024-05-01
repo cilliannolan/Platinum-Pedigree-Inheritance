@@ -76,6 +76,41 @@ fn parse_contigs(fai: String) -> Vec<Contig> {
     return result;
 }
 
+fn load_multi(mashed: String) -> HashSet<String> {
+    let mut possible_collapse: HashSet<String> = HashSet::new();
+
+    for line in read_to_string(mashed).unwrap().lines() {
+        // chr9:16058053:16058055:AT:A,AA field zero
+        let fields: Vec<String> = line.split_whitespace().map(str::to_string).collect();
+        let posinfo: Vec<String> = fields
+            .get(0)
+            .unwrap()
+            .split(":")
+            .map(str::to_string)
+            .collect();
+        if posinfo.get(4).unwrap().contains(",") {
+            let alleles: Vec<String> = posinfo
+                .get(4)
+                .unwrap()
+                .split(",")
+                .map(str::to_string)
+                .collect();
+            for a in alleles {
+                let lookup = format!(
+                    "{}:{}:{}:{}:{}",
+                    posinfo.get(0).unwrap(),
+                    posinfo.get(1).unwrap(),
+                    posinfo.get(2).unwrap(),
+                    posinfo.get(3).unwrap(),
+                    a,
+                );
+                possible_collapse.insert(lookup);
+            }
+        }
+    }
+    return possible_collapse;
+}
+
 fn main() {
     let mut failed_sites: i64 = 0;
     let mut passed_sites: i64 = 0;
@@ -137,7 +172,9 @@ fn main() {
     header.push_str("\n");
     vcf.write(header.as_bytes()).expect("Failure to write vcf");
 
-    for line in read_to_string(args.mashed).unwrap().lines() {
+    let to_skip = load_multi(args.mashed.clone());
+
+    for line in read_to_string(args.mashed.clone()).unwrap().lines() {
         let fields: Vec<String> = line.split_whitespace().map(str::to_string).collect();
         let geno: Vec<String> = fields[1].split(",").map(str::to_string).collect();
         let mut sources: Vec<String> = fields
@@ -172,6 +209,11 @@ fn main() {
         }
 
         let mut vcf_filter = "PASS".to_string();
+
+        if to_skip.contains(fields.get(0).unwrap()) {
+            failed_sites += 1;
+            vcf_filter = "contained".to_string();
+        }
 
         if seen_genos.len() > 1 {
             failed_sites += 1;
