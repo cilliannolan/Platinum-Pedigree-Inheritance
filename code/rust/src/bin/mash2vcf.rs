@@ -113,6 +113,7 @@ fn load_multi(mashed: String) -> HashSet<String> {
 
 fn main() {
     let mut failed_sites: i64 = 0;
+    let mut contained_sites: i64 = 0;
     let mut passed_sites: i64 = 0;
 
     let args = Args::parse();
@@ -210,8 +211,9 @@ fn main() {
 
         let mut vcf_filter = "PASS".to_string();
 
+        // this is not a failed site, otherwise we'd skip these sites.
         if to_skip.contains(fields.get(0).unwrap()) {
-            failed_sites += 1;
+            contained_sites += 1;
             vcf_filter = "contained".to_string();
         }
 
@@ -266,7 +268,7 @@ fn main() {
     }
 
     info!(
-        "passed site count:{} failed site count:{}",
-        passed_sites, failed_sites
+        "passed site count:{} failed site count:{} contained site count:{}",
+        passed_sites, failed_sites, contained_sites
     );
 }
