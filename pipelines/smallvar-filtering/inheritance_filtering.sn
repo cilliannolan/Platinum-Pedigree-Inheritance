@@ -90,7 +90,7 @@ rule identify_overlaps:
     output: "merged_truth/{ref}/{parent}_resolver.ovls.txt", "merged_truth/{ref}/{parent}_resolver.ovls.bed"
     shell: """
         {input.resolver} --fasta {input.ref} --vcf {input.vcf} --sample {wildcards.parent} --region {input.region_fn} --prefix merged_truth/{wildcards.ref}/{wildcards.parent}_resolver -d
-        sort merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.txt | perl -lane 'print "$F[0]\\t$F[1]\\t$F[1]"' | sort | uniq  > merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.bed
+        sort merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.txt | perl -lane '$start = $F[1] - 25; $end = $F[1] + 25; print "$F[0]\\t$start\\t$end"' | sort | uniq  > merged_truth/{wildcards.ref}/{wildcards.parent}_resolver.ovls.bed
     """
 
 rule prep_compressed_vcf:
