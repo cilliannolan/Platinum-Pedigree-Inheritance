@@ -46,7 +46,7 @@ rule merge_ovls:
     input:  expand("merged_truth/{{ref}}/{parent}_resolver.ovls.bed", parent=["NA12878", "NA12877"])
     output: "merged_truth/{ref}/merged_resolver.ovl.bed"
     shell: """
-        cat {input} | sort -k1,1 -k2,2 | bedtools merge -i - > {output}
+        cat {input} | grep -v "#" | sort -k1,1 -k2,2n | bedtools merge -i - > {output}
     """
 
 rule remove_large_indels:
