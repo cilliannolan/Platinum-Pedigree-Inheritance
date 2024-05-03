@@ -144,6 +144,9 @@ fn main() {
     header.push_str(
         "##FILTER=<ID=gt_mismatch,Description=\"One or more caller has different genotypes\">\n",
     );
+    header.push_str(
+        "##FILTER=<ID=contained,Description=\"One or more caller has overlapping alleles\">\n",
+    );
     header.push_str("##INFO=<ID=SOURCES,Number=.,Type=String,Description=\"List of tools or technologies that called the same record\">\n");
     header.push_str("##INFO=<ID=SC,Number=1,Type=Integer,Description=\"Count of supporting tools or technologies\">\n");
     header.push_str(
