@@ -36,10 +36,17 @@ rule gather:
      expand("merged_truth/{ref}/{parent}.var_anno.json", ref=REF, parent=["NA12878", "NA12877"])
 
 rule remove_fails_anno:
-    input: hq="merged_truth/{ref}/hq_regions.bed",  fails="merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed", large_indels="merged_truth/{ref}/large_indels.bed", odd=_get_odd
+    input: hq="merged_truth/{ref}/hq_regions.bed",  fails="merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed", large_indels="merged_truth/{ref}/large_indels.bed", odd=_get_odd, ovl_vars="merged_truth/{ref}/merged_resolver.ovl.bed"
     output: "merged_truth/{ref}/hq_regions_final.bed"
     shell: """
-        bedtools subtract -a {input.hq} -b {input.fails} | bedtools subtract -a - -b {input.odd} | bedtools subtract -a - -b {input.large_indels} > {output}
+        bedtools subtract -a {input.hq} -b {input.fails} | bedtools subtract -a - -b {input.odd} | bedtools subtract -a - -b {input.large_indels} | bedtools subtract -a - -b {input.ovl_vars} > {output}
+    """
+
+rule merge_ovls:
+    input:  expand("merged_truth/{{ref}}/{parent}_resolver.ovls.bed")
+    output: "merged_truth/{ref}/merged_resolver.ovl.bed"
+    shell: """
+        cat {input} | sort -k1,1 -k2,2 | bedtools merge -i - > {output}
     """
 
 rule remove_large_indels:
