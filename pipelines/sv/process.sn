@@ -1,4 +1,4 @@
-CALLER = ["pbsv", "sniffles", "sawfish"]
+CALLER = ["pbsv", "sniffles", "sawfish", "pav"]
 
 def _get_vcf(wildcards):
     return config["samples"][wildcards.caller]
@@ -10,13 +10,19 @@ rule pedfilter:
     input: bin=config['concordance'], vcf="pre_filtered/{caller}.prefilt.vcf", inheritance=config['inheritance']
     output: "ped_filtered/{caller}.pedfilt.vcf"
     shell: """
-        cd ped_filtered ; {input.bin} --father NA12877 --mother NA12878 --vcf {input.vcf} --inheritance {input.inheritance} --prefix {wildcards.caller}.pedfilt > {wildcards.caller}.pedfilt.out
+        cd ped_filtered ; {input.bin} --father NA12877 --mother NA12878 --vcf ../{input.vcf} --inheritance {input.inheritance} --prefix {wildcards.caller}.pedfilt > {wildcards.caller}.pedfilt.out
     """
 
 rule prefilter:
     input: _get_vcf
     output: "pre_filtered/{caller}.prefilt.vcf"
     shell: """
-        sed '/^##/! s/|/\//g' {input} | bcftools view -i '(ILEN < -49 || ILEN > 50)' - | bcftools view --trim-alt-alleles --samples NA12879,NA12881,NA12882,NA12883,NA12884,NA12885,NA12886,NA12887,NA12877,NA12878 --regions chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX -  | bcftools +fill-tags | bcftools view -i '(AC > 0)' - > {output}
+        sed '/^##/! s/|/\//g' {input} > pre_filtered/{wildcards.caller}.nophase.vcf
+        bgzip pre_filtered/{wildcards.caller}.nophase.vcf
+        tabix -p vcf  pre_filtered/{wildcards.caller}.nophase.vcf.gz
+        bcftools view -O z --trim-alt-alleles --samples NA12879,NA12881,NA12882,NA12883,NA12884,NA12885,NA12886,NA12887,NA12877,NA12878 --regions chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX pre_filtered/{wildcards.caller}.nophase.vcf.gz |  \
+        bcftools view -i '(ILEN < -49 || ILEN > 50)' -  | \
+        bcftools +fill-tags - | \
+        bcftools view -i '(AC > 0)' - > {output}
     """
 
