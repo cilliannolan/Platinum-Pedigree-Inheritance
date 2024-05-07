@@ -420,40 +420,45 @@ fn main() {
             continue;
         }
 
-        let mut new_gts: Vec<GenotypeAllele> = Vec::new();
-        let sample_count = usize::try_from(record.sample_count()).unwrap();
+        if !args.skip {
+            let mut new_gts: Vec<GenotypeAllele> = Vec::new();
+            let sample_count = usize::try_from(record.sample_count()).unwrap();
 
-        let phased =
-            build_phased_haplotypes(&configurations[con as usize], &block.as_ref().unwrap());
+            let phased =
+                build_phased_haplotypes(&configurations[con as usize], &block.as_ref().unwrap());
 
-        for sample_index in 0..sample_count {
-            let sample_name = String::from_utf8(header.samples()[sample_index].to_vec()).unwrap();
-            let gt = gts.get(sample_index);
+            for sample_index in 0..sample_count {
+                let sample_name =
+                    String::from_utf8(header.samples()[sample_index].to_vec()).unwrap();
+                let gt = gts.get(sample_index);
 
-            if phased.contains_key(&sample_name) {
-                let pg = phased.get(&sample_name).unwrap();
+                if phased.contains_key(&sample_name) {
+                    let pg = phased.get(&sample_name).unwrap();
 
-                let mut a0: usize = pg[0].index().unwrap().try_into().unwrap();
-                let mut a1: usize = pg[1].index().unwrap().try_into().unwrap();
+                    let mut a0: usize = pg[0].index().unwrap().try_into().unwrap();
+                    let mut a1: usize = pg[1].index().unwrap().try_into().unwrap();
 
-                a0 = *reordered_alleles.0.get(&a0).unwrap();
-                a1 = *reordered_alleles.0.get(&a1).unwrap();
+                    a0 = *reordered_alleles.0.get(&a0).unwrap();
+                    a1 = *reordered_alleles.0.get(&a1).unwrap();
 
-                new_gts.push(GenotypeAllele::Unphased(a0 as i32));
-                new_gts.push(GenotypeAllele::Phased(a1 as i32));
-            } else {
-                for g in gt.iter() {
-                    new_gts.push(g.clone());
+                    new_gts.push(GenotypeAllele::Unphased(a0 as i32));
+                    new_gts.push(GenotypeAllele::Phased(a1 as i32));
+                } else {
+                    for g in gt.iter() {
+                        new_gts.push(g.clone());
+                    }
                 }
             }
+
+            newrecord.push_genotypes(&new_gts).unwrap();
+            newrecord.set_alleles(&reordered_alleles.1).unwrap();
+
+            passed += 1;
+            outvcf.write(&newrecord).unwrap();
+            inheritance[current_block_idx].passing_count += 1;
+        } else {
+            outvcf.write(&record).unwrap();
         }
-
-        newrecord.push_genotypes(&new_gts).unwrap();
-        newrecord.set_alleles(&reordered_alleles.1).unwrap();
-
-        passed += 1;
-        outvcf.write(&newrecord).unwrap();
-        inheritance[current_block_idx].passing_count += 1;
     }
 
     for (ov, c) in &fail_counts {
