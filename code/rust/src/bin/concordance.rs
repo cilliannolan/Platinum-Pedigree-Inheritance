@@ -6,7 +6,6 @@ use std::str;
 
 use clap::Parser;
 use csv::ReaderBuilder;
-use edit_distance::edit_distance;
 use rust_htslib::bcf::header::HeaderView;
 use rust_htslib::bcf::record::{Genotype, GenotypeAllele};
 use rust_htslib::bcf::{Format, Header, Read, Reader, Writer};
@@ -26,11 +25,18 @@ struct Args {
     #[arg(short, long)]
     prefix: String,
 
+    /// Sample ID of the father
     #[arg(short, long)]
     father: String,
 
+    /// Skip concordance filtering, but keep all other filters
+    #[arg(short, long, default_value_t = false)]
+    skip: bool,
+
+    /// Sample ID of the mother
     #[arg(short, long)]
     mother: String,
+
     /// Minimum quality score
     #[arg(short, long, default_value_t = 20.0)]
     qual: f32,
@@ -228,7 +234,7 @@ fn reorder_alleles(alleles: Vec<&[u8]>) -> (HashMap<usize, usize>, Vec<&[u8]>) {
         if idx == 0 {
             continue;
         }
-        alts.push((str::from_utf8(alt).unwrap().clone(), idx));
+        alts.push((str::from_utf8(alt).unwrap(), idx));
     }
     alts.sort_by_key(|x| x.0);
 
@@ -276,7 +282,7 @@ fn main() {
     let mut fail_counts: HashMap<String, i64> = HashMap::new();
 
     for (_i, record_result) in bcf.records().enumerate() {
-        let mut record = record_result.expect("Fail to read record");
+        let record = record_result.expect("Fail to read record");
         let mut newrecord = record.clone();
 
         let alleles = record.alleles();
@@ -404,7 +410,7 @@ fn main() {
         let con = concordant(configurations, &block.as_ref().unwrap(), genovec);
 
         // unable to find a genotype configuration that matches the inheritance vector
-        if con == -1 {
+        if con == -1 && !args.skip {
             failed_site = true;
             no_con += 1;
         }
