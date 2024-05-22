@@ -150,7 +150,7 @@ fn main() {
     header.push_str("##INFO=<ID=SOURCES,Number=.,Type=String,Description=\"List of tools or technologies that called the same record\">\n");
     header.push_str("##INFO=<ID=SC,Number=1,Type=Integer,Description=\"Count of supporting tools or technologies\">\n");
     header.push_str(
-        "##INFO=<ID=TYPE,Number=1,Type=String,Description=\"Allele Type (SNV or INDEL)\">\n",
+        "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Allele Type (SNV or INDEL)\">\n",
     );
     header.push_str("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
     for c in contigs {
@@ -228,10 +228,17 @@ fn main() {
 
         let pos_allele: Vec<String> = fields[0].split(":").map(str::to_string).collect();
 
-        let mut record_type = "SNV".to_string();
-        if pos_allele[3].len() > 1 || pos_allele[4].len() > 1 {
-            record_type = "INDEL".to_string();
+        let mut types = HashSet::new();
+
+        for a in 3..pos_allele.len() {
+            if pos_allele[a].len() > 1 {
+                types.insert("INDEL".to_string());
+            } else {
+                types.insert("SNV".to_string());
+            }
         }
+
+        let record_type = types.into_iter().collect::<Vec<String>>().join(",").clone();
 
         let mut record = VcfRecord {
             chrom: pos_allele[0].clone(),
