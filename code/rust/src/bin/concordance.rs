@@ -1,13 +1,13 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read as IoRead;
-use std::mem::{self, swap};
+use std::mem::swap;
 use std::path::Path;
 use std::str;
 
 use clap::Parser;
 use csv::ReaderBuilder;
 use rust_htslib::bcf::header::HeaderView;
-use rust_htslib::bcf::record::{Genotype, GenotypeAllele};
+use rust_htslib::bcf::record::GenotypeAllele;
 use rust_htslib::bcf::{Format, Header, Read, Reader, Writer};
 
 /// Filter variants based on expected haplotypes
@@ -179,18 +179,14 @@ fn get_iht_block<'a>(
     return None;
 }
 
-fn concordant(
-    parents: [[GenotypeAllele; 4]; 4],
-    block: &InheritanceBlock,
-    genos: Vec<GenotypeAllele>,
-) -> i8 {
+fn concordant(parents: [[u32; 4]; 4], block: &InheritanceBlock, genos: Vec<u32>) -> i8 {
     for (i, c) in parents.iter().enumerate() {
-        let mut genovec: Vec<GenotypeAllele> = Vec::new();
+        let mut genovec: Vec<u32> = Vec::new();
         for p in &block.parental_hap {
             let mut first_allele = c[allele_conversion(p.chars().nth(0).unwrap())];
             let mut second_allele = c[allele_conversion(p.chars().nth(1).unwrap())];
 
-            if first_allele.index() > second_allele.index() {
+            if first_allele > second_allele {
                 swap(&mut first_allele, &mut second_allele);
             }
             genovec.push(first_allele);
@@ -204,10 +200,10 @@ fn concordant(
 }
 
 fn build_phased_haplotypes(
-    parents: &[GenotypeAllele; 4],
+    parents: &[u32; 4],
     block: &InheritanceBlock,
-) -> HashMap<String, [GenotypeAllele; 2]> {
-    let mut sample_to_alleles: HashMap<String, [GenotypeAllele; 2]> = HashMap::new();
+) -> HashMap<String, [u32; 2]> {
+    let mut sample_to_alleles: HashMap<String, [u32; 2]> = HashMap::new();
 
     let sample_names = block.samples.clone();
 
@@ -313,7 +309,7 @@ fn main() {
             Some(_) => {}
         }
 
-        let mut genovec: Vec<GenotypeAllele> = Vec::new();
+        let mut genovec: Vec<u32> = Vec::new();
         let mut failed_site = false;
         let mut alt_count: usize = 0;
         let mut het_count: usize = 0;
@@ -333,6 +329,8 @@ fn main() {
             lowq += 1;
             continue;
         }
+
+        let mut no_missing = true;
 
         // samples are ordered by inheritance vector header
         for s in samples.iter() {
@@ -354,9 +352,10 @@ fn main() {
             {
                 nocall_geno += 1;
                 failed_site = true;
+                no_missing = false;
                 break;
             }
-            // this will blow up unless the previous if statement is removed
+            // this will blow up unless the previous if statement is present
             if first_allele.index().unwrap() > 0 || second_allele.index().unwrap() > 0 {
                 alt_count += 1;
             }
@@ -369,14 +368,15 @@ fn main() {
             if first_allele.index() > second_allele.index() {
                 swap(&mut first_allele, &mut second_allele);
             }
-            genovec.push(first_allele);
-            genovec.push(second_allele);
+            genovec.push(first_allele.index().unwrap());
+            genovec.push(second_allele.index().unwrap());
         }
 
         // if the alt count is zero, we have a hom-ref site.
-        if alt_count == 0 {
+        if alt_count == 0 && no_missing {
             all_ref += 1;
             failed_site = true;
+            println!("gv: {:?}", genovec);
         }
 
         if failed_site {
@@ -387,21 +387,41 @@ fn main() {
         let mother_gt = gts.get(ped_idx_lookup[&args.mother]);
         let father_gt = gts.get(ped_idx_lookup[&args.father]);
 
-        let mut parent_allele_count: HashSet<GenotypeAllele> = HashSet::new();
+        let mut parent_allele_count: HashSet<u32> = HashSet::new();
 
         let configurations = [
-            [father_gt[0], father_gt[1], mother_gt[0], mother_gt[1]],
-            [father_gt[1], father_gt[0], mother_gt[0], mother_gt[1]],
-            [father_gt[0], father_gt[1], mother_gt[1], mother_gt[0]],
-            [father_gt[1], father_gt[0], mother_gt[1], mother_gt[0]],
+            [
+                father_gt[0].index().unwrap(),
+                father_gt[1].index().unwrap(),
+                mother_gt[0].index().unwrap(),
+                mother_gt[1].index().unwrap(),
+            ],
+            [
+                father_gt[1].index().unwrap(),
+                father_gt[0].index().unwrap(),
+                mother_gt[0].index().unwrap(),
+                mother_gt[1].index().unwrap(),
+            ],
+            [
+                father_gt[0].index().unwrap(),
+                father_gt[1].index().unwrap(),
+                mother_gt[1].index().unwrap(),
+                mother_gt[0].index().unwrap(),
+            ],
+            [
+                father_gt[1].index().unwrap(),
+                father_gt[0].index().unwrap(),
+                mother_gt[1].index().unwrap(),
+                mother_gt[0].index().unwrap(),
+            ],
         ];
 
-        parent_allele_count.insert(father_gt[0]);
-        parent_allele_count.insert(father_gt[1]);
-        parent_allele_count.insert(mother_gt[0]);
-        parent_allele_count.insert(mother_gt[1]);
+        parent_allele_count.insert(father_gt[0].index().unwrap());
+        parent_allele_count.insert(father_gt[1].index().unwrap());
+        parent_allele_count.insert(mother_gt[0].index().unwrap());
+        parent_allele_count.insert(mother_gt[1].index().unwrap());
 
-        // if everything is het we check that the parent alleles are the same too.
+        // if everything is het we check that the parent alleles are the same too. We do this because if there are more than two alleles in the parents we can distinguish inheritance.
         if het_count == samples.len() && parent_allele_count.len() == 2 {
             all_het += 1;
             failed_site = true;
@@ -435,8 +455,8 @@ fn main() {
                 if phased.contains_key(&sample_name) {
                     let pg = phased.get(&sample_name).unwrap();
 
-                    let mut a0: usize = pg[0].index().unwrap().try_into().unwrap();
-                    let mut a1: usize = pg[1].index().unwrap().try_into().unwrap();
+                    let mut a0: usize = pg[0].try_into().unwrap();
+                    let mut a1: usize = pg[1].try_into().unwrap();
 
                     a0 = *reordered_alleles.0.get(&a0).unwrap();
                     a1 = *reordered_alleles.0.get(&a1).unwrap();
@@ -482,7 +502,7 @@ fn main() {
     let con_rate = (passed as f64) / (passed + no_con) as f64;
 
     println!(
-        "not in block: {} passed: {} failed: {} all-het: {} all-ref: {} non-concordant: {} nocall-geno: {} lq: {} concordance-rate: {} ",
+        "not in block: {} passed: {} failed: {} all-het: {} all-ref: {} non-concordant: {} nocall-geno: {} lq: {} concordance-rate: {:.3} ",
         block_fail, passed, failed, all_het, all_ref, no_con, nocall_geno, lowq, con_rate
     );
 }
