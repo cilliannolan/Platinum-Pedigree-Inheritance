@@ -62,10 +62,18 @@ fn main() {
             out = format!("{} {}", out, i);
         }
 
+        let mut ncov = 0;
+
+        for i in &counter {
+            if *i.1 > 0 {
+                ncov += 1;
+            }
+        }
+
         out = format!(
             "{} {} {} {} {} {} {}",
             out,
-            counter.len(),
+            ncov,
             len,
             counter.get(&'A').unwrap(),
             counter.get(&'B').unwrap(),
