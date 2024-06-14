@@ -33,6 +33,10 @@ path = "src/bin/annotateOvl.rs"
 name = "asmprefix"
 path = "src/bin/asm_prefixer.rs"
 
+[[bin]]
+name = "ihtstats"
+path = "src/bin/vector_analysis.rs"
+
 [dependencies]
 clap = { version = "*", features = ["derive"] }
 slurp = "1.0.1"
