@@ -24,6 +24,7 @@ fn main() {
         .expect("Error reading inheritance CSV header")
         .clone();
 
+    let mut countsum: HashMap<i32, i128> = HashMap::new();
     let mut hapsums: HashMap<char, i128> = HashMap::new();
     *hapsums.entry('A').or_insert(0);
     *hapsums.entry('B').or_insert(0);
@@ -70,8 +71,24 @@ fn main() {
             }
         }
 
+        *countsum.entry(ncov).or_insert(0) += len;
+
+        let mut paint = "NA".to_string();
+        if *counter.get(&'A').unwrap() == 0 {
+            paint = "A".to_string();
+        }
+        if *counter.get(&'B').unwrap() == 0 {
+            paint = "B".to_string();
+        }
+        if *counter.get(&'C').unwrap() == 0 {
+            paint = "C".to_string();
+        }
+        if *counter.get(&'D').unwrap() == 0 {
+            paint = "D".to_string();
+        }
+
         out = format!(
-            "{} {} {} {} {} {} {}",
+            "{} {} {} {} {} {} {} {}",
             out,
             ncov,
             len,
@@ -79,6 +96,7 @@ fn main() {
             counter.get(&'B').unwrap(),
             counter.get(&'C').unwrap(),
             counter.get(&'D').unwrap(),
+            paint,
         );
 
         println!("{}", out);
@@ -104,11 +122,14 @@ fn main() {
     }
 
     for l in &hapsums {
-        println!("TOT {} {}", l.0, l.1);
+        println!("TO {} {}", l.0, l.1);
     }
     for i in hap_obs {
         for j in i.1 {
-            println!("HTL\t{}\t{}", i.0, j);
+            println!("HS\t{}\t{}", i.0, j);
         }
+    }
+    for i in countsum {
+        println!("CS\t{}\t{}", i.0, i.1);
     }
 }
