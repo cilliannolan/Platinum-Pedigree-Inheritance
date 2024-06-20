@@ -37,6 +37,10 @@ path = "src/bin/asm_prefixer.rs"
 name = "ihtstats"
 path = "src/bin/vector_analysis.rs"
 
+[[bin]]
+name = "overlaps"
+path = "src/bin/analyzeSmallVars.rs"
+
 [dependencies]
 clap = { version = "*", features = ["derive"] }
 slurp = "1.0.1"
