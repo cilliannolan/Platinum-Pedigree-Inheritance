@@ -40,6 +40,7 @@ rule gather:
      expand("merged_truth/{ref}/{parent}_resolver.haps.fasta",ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}_merged.paf", ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}.var_anno.json", ref=REF, parent=["NA12878", "NA12877"])
+     expand("merged_truth/{ref}/NA12878_hq_truthset.vcf.gz", ref=REF)
 
 rule NA12878_get:
     input: "merged_truth/{ref}/ceph_small_variant_g2g3_hq.vcf.gz"
