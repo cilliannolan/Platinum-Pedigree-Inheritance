@@ -41,6 +41,14 @@ rule gather:
      expand("merged_truth/{ref}/{parent}_merged.paf", ref=REF, parent=["NA12878", "NA12877"]),
      expand("merged_truth/{ref}/{parent}.var_anno.json", ref=REF, parent=["NA12878", "NA12877"])
 
+rule NA12878_get:
+    input: "merged_truth/{ref}/ceph_small_variant_g2g3_hq.vcf.gz"
+    output: "merged_truth/{ref}/NA12878_hq_truthset.vcf.gz"
+    shell: """
+        bcftools view -s NA12878 {input} | bcftools view -O z -i 'GT[*]="alt"' > {output}
+        tabix -p vcf {output}
+    """
+
 rule intersect_vars_and_hq:
     input: hq="merged_truth/{ref}/hq_regions_final.bed", vcf="merged_truth/{ref}/ceph_small_variant_g2g3_nolarge_indels.vcf.gz"
     output: "merged_truth/{ref}/ceph_small_variant_g2g3_hq.vcf.gz"
