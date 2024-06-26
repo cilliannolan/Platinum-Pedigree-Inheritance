@@ -60,7 +60,7 @@ rule intersect_vars_and_hq:
     """
 
 rule remove_fails_anno:
-    input: hq="merged_truth/{ref}/hq_regions.bed",  fails="merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed", large_indels="merged_truth/{ref}/large_indels.bed", odd=_get_odd, ovl_vars="merged_truth/{ref}/merged_resolver.ovl.bed", svs=_get_svs, hps=_get_missing_haps
+    input: hq="merged_truth/{ref}/hq_regions.bed",  fails="merged_truth/{ref}/ceph_small_variant_g2g3.fail.bed", large_indels="merged_truth/{ref}/large_indels.bed", odd=_get_odd, ovl_vars="merged_truth/{ref}/merged_resolver.ovl.bed", svs=_get_svs, missing_haps=_get_missing_haps
     output: "merged_truth/{ref}/hq_regions_final.bed"
     shell: """
         bedtools subtract -a {input.hq} -b {input.fails} | \
@@ -68,7 +68,7 @@ rule remove_fails_anno:
         bedtools subtract -a - -b {input.large_indels} | \
         bedtools subtract -a - -b {input.svs} | \
         bedtools subtract -a - -b {input.ovl_vars} | \
-        bedtools subtract -a - -b {input.missingHap} > {output}
+        bedtools subtract -a - -b {input.missing_haps} > {output}
     """
 
 rule merge_ovls:
