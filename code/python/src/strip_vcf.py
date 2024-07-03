@@ -1,9 +1,9 @@
 import argparse
+import json
 import logging
 import re
 from collections import defaultdict
 from pathlib import Path
-
 import pysam
 
 
@@ -66,6 +66,7 @@ def sniffles_clear(variant: pysam.VariantRecord) -> None:
             "COVERAGE",
             "SUPPORT",
             "PRECISE",
+            "IMPRECISE",
             "STDEV_LEN",
             "STDEV_POS",
             "SUPP_VEC",
@@ -108,6 +109,8 @@ def pbsv_clear(variant: pysam.VariantRecord) -> None:
     clear_variant_fields(
         variant,
         info_fields=[
+            "IMPRECISE",
+            "PRECISE"
             # 'AC', 'AN', 'NS', 'AF', 'MAF', 'AC_Het', 'AC_Hom', 'AC_Hemi', 'HWE', 'ExcHet'
         ],
         format_fields=["AD", "DP", "VAF", "VAF1"],
@@ -117,7 +120,7 @@ def pbsv_clear(variant: pysam.VariantRecord) -> None:
     )
 
 
-def strip_vcfs(sv_caller_path: Path, sv_out_path: Path) -> None:
+def strip_vcfs(input_json: Path, sv_out_path: Path) -> None:
     valid_callers = set(["pav", "pbsv", "sawfish", "sniffles", "pggb"])
 
     clear_function_map = {
@@ -127,28 +130,32 @@ def strip_vcfs(sv_caller_path: Path, sv_out_path: Path) -> None:
         "sawfish": sawfish_clear,
         "pbsv": pbsv_clear,
     }
-    caller_map = {"sniffles": "Sniffles2"}
 
-    for caller in sv_caller_path.glob("*.pedfilt.vcf"):
-        caller_id = caller.name.split(".")[0]
-        out_path = sv_out_path / f"{caller_id}.strip.pedfilt.vcf"
+    with open(input_json, 'r') as f:
+        vcf_info = json.load(f)
+
+    for entry in vcf_info:
+        caller_id = entry['caller']
+        vcf_path = Path(entry['path'])
+        prefix_tag = entry['prefix_tag']
 
         if caller_id not in valid_callers:
+            logging.warning(f"Skipping unknown caller: {caller_id}")
             continue
 
-        caller_id_prefix = caller_map.get(caller_id, caller_id)
+        out_path = sv_out_path / f"{vcf_path.stem.split('.')[0]}.strip.pedfilt.vcf"
         seen_map = defaultdict(int)
 
-        logging.info(f"Processing: {caller_id} - {caller}")
-        with pysam.VariantFile(caller, "r") as vcf_in:
+        logging.info(f"Processing: {caller_id} - {vcf_path}")
+        with pysam.VariantFile(vcf_path, "r") as vcf_in:
             with pysam.VariantFile(out_path, "w", header=vcf_in.header) as vcf_out:
                 for variant in vcf_in:
                     # ';' should never be used in the id field, replace with '_'
                     variant.id = re.sub(r"[;]", "_", variant.id)
 
-                    # Prefix SV caller to the id if its not there already
-                    if not variant.id.startswith(caller_id_prefix):
-                        variant.id = f"{caller_id_prefix}_{variant.id}"
+                    # Prefix SV caller to the id if prefix_tag is non-empty and not already there
+                    if prefix_tag and not variant.id.startswith(prefix_tag):
+                        variant.id = f"{prefix_tag}_{variant.id}"
 
                     # Duplicate variant id are handled by adding a suffix number to it
                     if variant.id in seen_map:
@@ -158,18 +165,22 @@ def strip_vcfs(sv_caller_path: Path, sv_out_path: Path) -> None:
                     # Clear variant fields specific to the SV caller
                     clear_function_map[caller_id](variant)
 
-                    vcf_out.write(variant)
+                    try:
+                        vcf_out.write(variant)
+                    except Exception as e:
+                        logging.error(f"Error writing variant: {variant}")
+                        logging.error(f"Error message: {str(e)}")
+
         logging.info(f"Output written to: {out_path}")
-        
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Strip VCF files of certain fields.")
     parser.add_argument(
         "-i",
-        "--in_path",
+        "--input_json",
         type=Path,
-        help="Path to the directory containing VCF files.",
+        help="Path to the JSON file containing VCF file information.",
         required=True,
     )
     parser.add_argument(
@@ -194,4 +205,4 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
-    strip_vcfs(args.in_path, args.out_path)
+    strip_vcfs(args.input_json, args.out_path)

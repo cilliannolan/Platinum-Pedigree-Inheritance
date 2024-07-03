@@ -6,14 +6,6 @@ from collections import defaultdict
 from typing import List, Tuple, DefaultDict, Union, Dict
 from intervaltree import IntervalTree, Interval
 
-vcf_id_map = {
-    "pav": "PAV",
-    "pbsv": "pbsv",
-    "sniffles": "Sniffles",
-    "sawfish": "Sawfish",
-    "pggb": "pggb",
-}
-
 
 def build_support_map(
     primary_it_map: DefaultDict[str, IntervalTree],
@@ -217,25 +209,16 @@ def get_gts(record: pysam.VariantRecord) -> List[Tuple[int, ...]]:
     return [record.samples[sample]["GT"] for sample in record.samples]
 
 
-def build_vcf_map(path: Path, sv_order_list: List[str]) -> DefaultDict[str, Path]:
+def build_vcf_map(vcf_paths: List[Path]) -> DefaultDict[str, Path]:
     vcf_map: DefaultDict[str, Path] = defaultdict(Path)
-    sv_order_count = {sv.lower(): 0 for sv in sv_order_list}
 
-    for p in path.glob("*.strip.pedfilt.vcf"):
-        vcf_source = p.name.split(".", 1)[0]
-        if vcf_source not in sv_order_count:
-            logging.info(f"Skipping: {vcf_source} - {p}")
-            continue
+    for p in vcf_paths:
+        if not p.exists():
+            raise FileNotFoundError(f"VCF file not found: {p}")
 
+        vcf_source = p.stem.split(".")[0]
         logging.info(f"Found: {vcf_source} - {p}")
         vcf_map[vcf_source] = p
-        sv_order_count[vcf_source] += 1
-
-    for sv, count in sv_order_count.items():
-        if count != 1:
-            raise ValueError(
-                f"SV caller {sv} was expected once but found {count} times."
-            )
 
     return vcf_map
 
@@ -457,9 +440,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-i",
-        "--sv_path",
+        "--vcf_files",
+        nargs="+",
         type=Path,
-        help="Path to all SV VCF files to process.",
+        help="Space-separated list of VCF files to process, in order of priority.",
         required=True,
     )
     parser.add_argument(
@@ -478,39 +462,35 @@ if __name__ == "__main__":
         help="Set the logging level",
     )
     parser.add_argument(
-        "-s",
-        "--sv_order",
-        type=str,
-        help="Comma-separated string of SV caller ordering to merge.",
-        required=True,
-    )
-
-    parser.add_argument(
         "-f",
         "--flank_len",
         type=int,
-        help="Flank length to use for variants in interval tree, e.g., an SV at pos=2500 with SV_len=200, with flank_ken=100 has [2400, 2800]",
+        help="Flank length to use for variants in interval tree, e.g., an SV at pos=2500 with SV_len=200, with flank_len=100 has [2400, 2800]",
         default=200,
     )
+    parser.add_argument(
+        "--no-use_support_map",
+        action="store_false",
+        dest="use_support_map",
+        help="Disable use of support map for selecting best supporting candidates",
+    )
+    parser.set_defaults(use_support_map=True)
 
     args = parser.parse_args()
 
-    sv_order_list = args.sv_order.split(",")
-    if len(sv_order_list) < 2:
-        parser.error(
-            "The --sv_order argument must contain at least two elements separated by commas."
-        )
+    if len(args.vcf_files) < 2:
+        parser.error("At least two VCF files must be provided.")
 
     logging.basicConfig(
         level=getattr(logging, args.log_level),
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
-    vcf_map = build_vcf_map(args.sv_path, sv_order_list)
+    vcf_map = build_vcf_map(args.vcf_files)
+    sv_order_list = [p.stem.split(".")[0] for p in args.vcf_files]
 
     sample_map = {}
     for vcf_id, vcf_path in vcf_map.items():
-        vcf_id = vcf_id_map[vcf_id]
         sample_map[vcf_id] = load_all_variants(vcf_path, by_id=False)
 
     logging.info(
@@ -546,11 +526,13 @@ if __name__ == "__main__":
     )
 
     logging.info("Selecting best supporting candidates")
-    select_sv_candidates(primary_it_map, dry_run=False, use_support_map=True)
+    select_sv_candidates(
+        primary_it_map, dry_run=False, use_support_map=args.use_support_map
+    )
 
     write_vcf(
         primary_it_map,
-        vcf_map[sv_order_list[0].lower()],
+        vcf_map[sv_order_list[0]],
         args.out_path,
         sv_order_list,
         args.flank_len,
