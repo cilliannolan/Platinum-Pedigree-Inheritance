@@ -11,11 +11,13 @@ Prior to SV merging it is important to handle the differences of SV callers by n
 "prefix_tag": "sawfish"
 }
 ```
-and an output path. Which will write a normalized VCF file (*.strip.pedfilt.vcf) for each input. Supported SV callers: sawfish, sniffles, pav, pggb, pbsv.
+and an output path. Which will write a normalized VCF file (*.strip.pedfilt.vcf) for each input. Supported SV callers: sawfish, sniffles, pav, pggb, pbsv, dipcall.
 
 ```
 python strip_vcf.py -i strip_vcf.json -o ../sv_vcfs/out/
 ```
+
+The optional parameter `--infer_svinfo` can be added which will try to infer missing SV information from the variant (this will check the header of the input VCF to see if SVTYPE/SVLEN are defined). This currently only supports insertions (INS) and deletions (DEL), anything else is marked as OTHER.
 
 ## VCF merging
 

@@ -2,7 +2,6 @@ import argparse
 import json
 import logging
 import re
-from collections import defaultdict
 from pathlib import Path
 import pysam
 
@@ -101,6 +100,8 @@ def pggb_clear(variant: pysam.VariantRecord) -> None:
             # 'AC', 'AN', 'NS', 'AF', 'MAF', 'AC_Het', 'AC_Hom', 'AC_Hemi', 'HWE', 'ExcHet',
             "AT",
             "LV",
+            "PS",
+            "CONFLICT",
         ],
     )
 
@@ -110,7 +111,7 @@ def pbsv_clear(variant: pysam.VariantRecord) -> None:
         variant,
         info_fields=[
             "IMPRECISE",
-            "PRECISE"
+            "PRECISE",
             # 'AC', 'AN', 'NS', 'AF', 'MAF', 'AC_Het', 'AC_Hom', 'AC_Hemi', 'HWE', 'ExcHet'
         ],
         format_fields=["AD", "DP", "VAF", "VAF1"],
@@ -120,56 +121,113 @@ def pbsv_clear(variant: pysam.VariantRecord) -> None:
     )
 
 
-def strip_vcfs(input_json: Path, sv_out_path: Path) -> None:
-    valid_callers = set(["pav", "pbsv", "sawfish", "sniffles", "pggb"])
+def dipcall_clear(variant: pysam.VariantRecord) -> None:
+    clear_variant_fields(
+        variant,
+        info_fields=[
+            # 'AC', 'AN', 'NS', 'AF', 'MAF', 'AC_Het', 'AC_Hom', 'AC_Hemi', 'HWE', 'ExcHet'
+        ],
+        format_fields=["AD", "DP", "VAF", "VAF1"],
+        sample_fields=["AD", "DP", "VAF", "VAF1"],
+        filter_fields=["GAP1", "GAP2", "HET1", "HET2", "DIPX", "DIPY"],
+    )
 
+
+def try_infer_sv_info(variant: pysam.VariantRecord) -> None:
+    if "SVLEN" not in variant.info or "SVTYPE" not in variant.info:
+        ref_len = len(variant.ref)
+        alt_len = len(variant.alts[0]) if variant.alts else 0
+
+        if "SVLEN" not in variant.info:
+            svlen = alt_len - ref_len
+            variant.info["SVLEN"] = svlen
+
+        if "SVTYPE" not in variant.info:
+            if alt_len > ref_len:
+                svtype = "INS"
+            elif alt_len < ref_len:
+                svtype = "DEL"
+            else:
+                svtype = "OTHER"
+            variant.info["SVTYPE"] = svtype
+
+
+def strip_vcfs(input_json: Path, sv_out_path: Path, infer_svinfo: bool = False) -> None:
     clear_function_map = {
         "sniffles": sniffles_clear,
         "pav": pav_clear,
         "pggb": pggb_clear,
         "sawfish": sawfish_clear,
         "pbsv": pbsv_clear,
+        "dipcall": dipcall_clear,
     }
 
-    with open(input_json, 'r') as f:
+    with open(input_json, "r") as f:
         vcf_info = json.load(f)
 
     for entry in vcf_info:
-        caller_id = entry['caller']
-        vcf_path = Path(entry['path'])
-        prefix_tag = entry['prefix_tag']
+        caller_id = entry["caller"]
+        vcf_path = Path(entry["path"])
+        prefix_tag = entry["prefix_tag"]
 
-        if caller_id not in valid_callers:
+        if caller_id not in clear_function_map:
             logging.warning(f"Skipping unknown caller: {caller_id}")
             continue
 
         out_path = sv_out_path / f"{vcf_path.stem.split('.')[0]}.strip.pedfilt.vcf"
-        seen_map = defaultdict(int)
+        seen_count = {}
 
         logging.info(f"Processing: {caller_id} - {vcf_path}")
         with pysam.VariantFile(vcf_path, "r") as vcf_in:
-            with pysam.VariantFile(out_path, "w", header=vcf_in.header) as vcf_out:
+            header = vcf_in.header
+
+            needs_svlen = "SVLEN" not in header.info
+            needs_svtype = "SVTYPE" not in header.info
+
+            if needs_svlen:
+                header.add_line(
+                    '##INFO=<ID=SVLEN,Number=1,Type=Integer,Description="Difference in length between REF and ALT alleles">'
+                )
+            if needs_svtype:
+                header.add_line(
+                    '##INFO=<ID=SVTYPE,Number=1,Type=String,Description="Type of structural variant">'
+                )
+
+            with pysam.VariantFile(out_path, "w", header=header) as vcf_out:
                 for variant in vcf_in:
                     # ';' should never be used in the id field, replace with '_'
-                    variant.id = re.sub(r"[;]", "_", variant.id)
+                    if variant.id:
+                        variant.id = re.sub(r"[;]", "_", variant.id)
+                    else:
+                        variant.id = ""
 
                     # Prefix SV caller to the id if prefix_tag is non-empty and not already there
                     if prefix_tag and not variant.id.startswith(prefix_tag):
-                        variant.id = f"{prefix_tag}_{variant.id}"
+                        if variant.id:
+                            variant.id = f"{prefix_tag}_{variant.id}"
+                        else:
+                            variant.id = f"{prefix_tag}"
 
-                    # Duplicate variant id are handled by adding a suffix number to it
-                    if variant.id in seen_map:
-                        variant.id = f"{variant.id}_{seen_map[variant.id]}"
-                    seen_map[variant.id] += 1
+                    # Handle duplicate variant IDs by adding an incrementing suffix
+                    original_id = variant.id
+                    if original_id in seen_count:
+                        seen_count[original_id] += 1
+                        variant.id = f"{original_id}_{seen_count[original_id]}"
+                    else:
+                        seen_count[original_id] = 0
 
                     # Clear variant fields specific to the SV caller
                     clear_function_map[caller_id](variant)
 
+                    if infer_svinfo and (needs_svlen or needs_svtype):
+                        try_infer_sv_info(variant)
+
                     try:
                         vcf_out.write(variant)
                     except Exception as e:
-                        logging.error(f"Error writing variant: {variant}")
-                        logging.error(f"Error message: {str(e)}")
+                        logging.error(
+                            f"Error: {str(e)}; Error writing variant: {variant}"
+                        )
 
         logging.info(f"Output written to: {out_path}")
 
@@ -198,6 +256,11 @@ if __name__ == "__main__":
         default="INFO",
         help="Set the logging level",
     )
+    parser.add_argument(
+        "--infer_svinfo",
+        action="store_true",
+        help="Infer missing SV information from the variant",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -205,4 +268,4 @@ if __name__ == "__main__":
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
-    strip_vcfs(args.input_json, args.out_path)
+    strip_vcfs(args.input_json, args.out_path, args.infer_svinfo)
