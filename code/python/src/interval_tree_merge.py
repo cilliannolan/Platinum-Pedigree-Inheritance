@@ -387,7 +387,7 @@ def write_vcf(
             '##INFO=<ID=SUPP,Number=1,Type=Integer,Description="Number of samples supporting the variant">'
         )
         vcf_in.header.add_line(
-            '##INFO=<ID=SUPP_VEC,Number=1,Type=String,Description="Vector of supporting samples">'
+            '##INFO=<ID=SOURCES,Number=1,Type=String,Description="Vector of supporting samples">'
         )
 
         vcf_in.header.add_line(
@@ -418,7 +418,7 @@ def write_vcf(
                         # Anything with one supporting caller is consistent by definition, i.e., we don't need to do anything else
                         if n_support == 1:
                             new_v.info["SUPP"] = n_support
-                            new_v.info["SUPP_VEC"] = v.id
+                            new_v.info["SOURCES"] = v.id
 
                             new_v.info["GT_CONSISTENT"] = 1
                             new_v.info["GT_N_CONSISTENT"] = 1
@@ -426,7 +426,7 @@ def write_vcf(
 
                         else:
                             new_v.info["SUPP"] = n_support
-                            new_v.info["SUPP_VEC"] = ",".join(
+                            new_v.info["SOURCES"] = ",".join(
                                 [v.id] + [i.id for i in v_supp]
                             )
 
