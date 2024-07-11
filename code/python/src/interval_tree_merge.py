@@ -1,10 +1,11 @@
 import argparse
 import logging
-import pysam
-from pathlib import Path
 from collections import defaultdict
-from typing import List, Tuple, DefaultDict, Union, Dict
-from intervaltree import IntervalTree, Interval
+from pathlib import Path
+from typing import DefaultDict, Dict, List, Tuple, Union
+
+import pysam
+from intervaltree import Interval, IntervalTree
 
 
 def build_support_map(
@@ -38,9 +39,10 @@ def build_support_map(
 
 
 def find_best_match(
-    support_v: pysam.VariantRecord, prime_variants: List[pysam.VariantRecord]
+    support_v: pysam.VariantRecord,
+    prime_variants: List[pysam.VariantRecord],
+    diff_threshold: int = 20,
 ) -> Union[None, str]:
-    DIFF_THRESHOLD = 20
     best_match = None
     best_diff = float("inf")
 
@@ -53,7 +55,7 @@ def find_best_match(
 
         length_diff = abs(support_len - prime_len)
         if (length_diff < best_diff) or (
-            length_diff <= DIFF_THRESHOLD and support_gts == prime_gts
+            length_diff <= diff_threshold and support_gts == prime_gts
         ):
             best_diff = length_diff
             best_match = prime_v.id
@@ -65,11 +67,12 @@ def build_best_candidate_map(
     support_map: DefaultDict[
         str, Tuple[pysam.VariantRecord, List[pysam.VariantRecord]]
     ],
+    diff_threshold: int = 20,
 ) -> Dict[str, str]:
     best_candidate_map = {}
 
     for support_id, (support_v, prime_variants) in support_map.items():
-        best_match = find_best_match(support_v, prime_variants)
+        best_match = find_best_match(support_v, prime_variants, diff_threshold)
         if best_match:
             best_candidate_map[support_id] = best_match
 
@@ -139,6 +142,7 @@ def select_sv_candidates(
     primary_it_map: DefaultDict[str, IntervalTree],
     dry_run: bool = False,
     use_support_map: bool = False,
+    diff_threshold: int = 20,
 ) -> Tuple[DefaultDict[str, int], DefaultDict[str, List[int]]]:
     """
     Select the most likely candidates (1 for each SV caller) from the supporting SV calls
@@ -148,7 +152,9 @@ def select_sv_candidates(
     # Mapping of supporting variants that appear in multiple primary variants
     if use_support_map:
         support_map = build_support_map(primary_it_map)
-        best_candidate_map = build_best_candidate_map(support_map)
+        best_candidate_map = build_best_candidate_map(
+            support_map, diff_threshold=diff_threshold
+        )
     else:
         best_candidate_map = None
 
@@ -350,6 +356,22 @@ def copy_variant_fields(
         target_variant.samples[sample].phased = source_variant.samples[sample].phased
 
 
+def track_out_vcf_stats(v: pysam.VariantRecord, stats_dict: defaultdict[int]):
+    n_support = v.info["SUPP"]
+    if n_support == 1:
+        stats_dict["n_singleton"] += 1
+        return
+
+    stats_dict[f"n_{n_support}_support"] += 1
+
+    n_gt_consistent = v.info["GT_N_CONSISTENT"]
+
+    if n_gt_consistent == n_support:
+        stats_dict[f"n_gt_fully_consistent_{n_support}"] += 1
+    else:
+        stats_dict[f"n_gt_inconsistent_{n_gt_consistent}_{n_support}"] += 1
+
+
 def write_vcf(
     primary_it_map: Dict[str, DefaultDict[str, IntervalTree]],
     template_vcf_path: Path,
@@ -358,6 +380,7 @@ def write_vcf(
     flank_len: int,
 ) -> None:
     logging.info(f"Writing VCF to {out_vcf_path}")
+    stats_dict = defaultdict(int)
 
     with pysam.VariantFile(template_vcf_path, "r") as vcf_in:
         vcf_in.header.add_line(
@@ -428,7 +451,11 @@ def write_vcf(
                                 gt_idlist_consistent
                             )
 
+                        track_out_vcf_stats(new_v, stats_dict)
                         vcf_out.write(new_v)
+
+    out_str = "\n".join([f"{k} = {v}" for k, v in sorted(stats_dict.items())])
+    logging.info(f"Genotyping consistency stats:\n{out_str}")
 
 
 if __name__ == "__main__":
@@ -473,6 +500,12 @@ if __name__ == "__main__":
         action="store_false",
         dest="use_support_map",
         help="Disable use of support map for selecting best supporting candidates",
+    )
+    parser.add_argument(
+        "--diff_threshold",
+        type=int,
+        default=20,
+        help="Threshold for length difference when finding best match",
     )
     parser.set_defaults(use_support_map=True)
 
@@ -527,7 +560,10 @@ if __name__ == "__main__":
 
     logging.info("Selecting best supporting candidates")
     select_sv_candidates(
-        primary_it_map, dry_run=False, use_support_map=args.use_support_map
+        primary_it_map,
+        dry_run=False,
+        use_support_map=args.use_support_map,
+        diff_threshold=args.diff_threshold,
     )
 
     write_vcf(
