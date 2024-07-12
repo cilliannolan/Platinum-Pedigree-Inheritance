@@ -21,7 +21,7 @@ The optional parameter `--infer_svinfo` can be added which will try to infer mis
 
 ## VCF merging
 
-After normalization the VCF files can be merged using `interval_tree_merge.py` given the space separated paths of normalized VCFs which also determines the merging ordering and a output file. Optional CLI options: `--flank_len` (default = 200), allows for setting the size of flanks when building intervals, `--diff_threshold` (default = 20), allows for setting the threshold for length difference when finding best matches.
+After normalization the VCF files can be merged using `interval_tree_merge.py` given the space separated paths of normalized VCFs which also determines the merging ordering and a output file. Optional CLI options: `--flank_len` (default = 200), allows for setting the size of flanks when building intervals, `--diff_threshold` (default = 50), allows for setting the threshold for length difference when finding best matches, `--allow_same_source_merge`, allows variants to give support to primary variants from the same source (disabled by default).
 
 The below command (assuming each SV VCF file is present), first merge pbsv into sawfish, then sniffles in that result, and finally do the same with PAV.
 

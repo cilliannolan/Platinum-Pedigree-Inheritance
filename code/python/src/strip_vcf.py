@@ -3,6 +3,7 @@ import json
 import logging
 import re
 from pathlib import Path
+
 import pysam
 
 
@@ -35,6 +36,7 @@ def clear_variant_fields(
             if field in variant.samples[sample_name]:
                 del variant.samples[sample_name][field]
 
+    # Delete filter fields
     for field in filter_fields:
         if field in variant.filter:
             del variant.filter[field]
@@ -45,6 +47,8 @@ def sawfish_clear(variant: pysam.VariantRecord) -> None:
         variant,
         info_fields=[
             # 'AC', 'AN', 'NS', 'AF', 'MAF', 'AC_Het', 'AC_Hom', 'AC_Hemi', 'HWE', 'ExcHet'
+            "EVENT",
+            "EVENTTYPE",
         ],
         format_fields=["GQ", "PL", "AD", "VAF", "VAF1"],
         sample_fields=["GQ", "PL", "AD", "VAF", "VAF1"],
@@ -198,15 +202,14 @@ def strip_vcfs(input_json: Path, sv_out_path: Path, infer_svinfo: bool = False) 
                     # ';' should never be used in the id field, replace with '_'
                     if variant.id:
                         variant.id = re.sub(r"[;]", "_", variant.id)
-                    else:
+                    else:  # If it is None, set it to an empty string
                         variant.id = ""
 
                     # Prefix SV caller to the id if prefix_tag is non-empty and not already there
-                    if prefix_tag and not variant.id.startswith(prefix_tag):
-                        if variant.id:
-                            variant.id = f"{prefix_tag}_{variant.id}"
-                        else:
-                            variant.id = f"{prefix_tag}"
+                    if caller_id.lower() not in variant.id.lower():
+                        variant.id = f"{prefix_tag}_{caller_id}_{variant.id}"
+                    else:
+                        variant.id = f"{prefix_tag}_{variant.id}"
 
                     # Handle duplicate variant IDs by adding an incrementing suffix
                     original_id = variant.id

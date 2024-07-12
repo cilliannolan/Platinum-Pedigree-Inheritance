@@ -1,5 +1,6 @@
 import argparse
 import logging
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import DefaultDict, Dict, List, Tuple, Union
@@ -259,6 +260,7 @@ def build_it_map(
     it_map: Dict[str, DefaultDict[str, IntervalTree]] = {
         "INS": defaultdict(IntervalTree),
         "DEL": defaultdict(IntervalTree),
+        "INV": defaultdict(IntervalTree),
     }
 
     for vs in sample.values():
@@ -268,9 +270,9 @@ def build_it_map(
             if svtype not in it_map:
                 continue
 
+            chrom: str = v.chrom
             start: int = v.start - flank_len
             stop: int = v.stop + (1 if svtype == "INS" else 0) + flank_len
-            chrom: str = v.chrom
 
             tree = it_map[svtype][chrom]
             #                             (variant, variant_supp
@@ -279,15 +281,34 @@ def build_it_map(
     return it_map
 
 
-def update_or_add_intervals(primary_tree: IntervalTree, interval: Interval) -> None:
+def extract_source_from_id(s):
+    """
+    Extract id prefix corresponding to the source
+    """
+    match = re.match(r"^[^_:;.]+_[^_:;.]+", s)
+    return match.group(0) if match else None
+
+
+def update_or_add_intervals(
+    primary_tree: IntervalTree, interval: Interval, allow_same_source_merge: bool
+) -> None:
     """
     Update or add intervals in the primary interval tree.
     """
     query = primary_tree.overlap(interval)
+
+    if not allow_same_source_merge:
+        # Filter out overlaps from query where the primary variant has the same source as the interval being tested
+        interval_source = extract_source_from_id(interval.data[0].id)
+        query = [
+            p for p in query if extract_source_from_id(p.data[0].id) != interval_source
+        ]
+
     if query:
         intervals_to_add = []
         intervals_to_remove = []
         for p_interval in query:
+            # We have to update existing intervals with new data, which reguires removing and adding them back
             intervals_to_remove.append(p_interval)
 
             variant, _ = interval.data
@@ -312,25 +333,32 @@ def update_or_add_intervals(primary_tree: IntervalTree, interval: Interval) -> N
 def sv_iter_merge_helper(
     primary_it_map: DefaultDict[str, IntervalTree],
     other_it_map: DefaultDict[str, IntervalTree],
+    allow_same_source_merge: bool,
 ) -> None:
     """
     Helper function to merge intervals from other_it_map into primary_it_map.
     """
     for chrom, tree in other_it_map.items():
         for interval in tree:
-            update_or_add_intervals(primary_it_map[chrom], interval)
+            update_or_add_intervals(
+                primary_it_map[chrom], interval, allow_same_source_merge
+            )
 
 
 def sv_iter_merge(
     primary_it_map: Dict[str, DefaultDict[str, IntervalTree]],
     other_it_map: Dict[str, DefaultDict[str, IntervalTree]],
+    allow_same_source_merge: bool,
 ) -> None:
     """
     Merges intervals from other_it_map into primary_it_map for valid SV types.
     """
-    valid_svtype = set(["INS", "DEL"])
+    valid_svtype = set(["INS", "DEL", "INV"])
+
     for svtype in valid_svtype:
-        sv_iter_merge_helper(primary_it_map[svtype], other_it_map[svtype])
+        sv_iter_merge_helper(
+            primary_it_map[svtype], other_it_map[svtype], allow_same_source_merge
+        )
 
 
 def copy_variant_fields(
@@ -492,7 +520,7 @@ if __name__ == "__main__":
         "-f",
         "--flank_len",
         type=int,
-        help="Flank length to use for variants in interval tree, e.g., an SV at pos=2500 with SV_len=200, with flank_len=100 has [2400, 2800]",
+        help="Flank length to use for variants in interval tree, e.g., an SV at pos=2500 with SV_len=200, with flank_len=100 has [2400, 2800] (default = 200)",
         default=200,
     )
     parser.add_argument(
@@ -502,11 +530,18 @@ if __name__ == "__main__":
         help="Disable use of support map for selecting best supporting candidates",
     )
     parser.add_argument(
+        "--allow_same_source_merge",
+        action="store_true",
+        dest="allow_same_source_merge",
+        help="Allow supporting variants to be merged into primary variants if they have the same source",
+    )
+    parser.add_argument(
         "--diff_threshold",
         type=int,
-        default=20,
-        help="Threshold for length difference when finding best match",
+        default=50,
+        help="Threshold for length difference when finding best match (default = 50)",
     )
+
     parser.set_defaults(use_support_map=True)
 
     args = parser.parse_args()
@@ -549,7 +584,7 @@ if __name__ == "__main__":
             )
         )
         logging.info(f"Merging {svcaller} into the primary map")
-        sv_iter_merge(primary_it_map, svcaller_it_map)
+        sv_iter_merge(primary_it_map, svcaller_it_map, args.allow_same_source_merge)
 
     logging.info("Finished merging")
     logging.info(
