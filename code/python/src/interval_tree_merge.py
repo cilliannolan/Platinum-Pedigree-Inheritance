@@ -48,12 +48,11 @@ def find_best_match(
     best_diff = float("inf")
 
     support_len = extract_svlen(support_v)
-    support_gts = get_gts(support_v)[-2:]
+    support_gts = get_gts(support_v)[-2:]  # Parental GTs
 
     for prime_v in prime_variants:
         prime_len = extract_svlen(prime_v)
-        prime_gts = get_gts(prime_v)[-2:]
-
+        prime_gts = get_gts(prime_v)[-2:]  # Parental GTs
         length_diff = abs(support_len - prime_len)
         if (length_diff < best_diff) or (
             length_diff <= diff_threshold and support_gts == prime_gts
@@ -71,7 +70,6 @@ def build_best_candidate_map(
     diff_threshold: int = 20,
 ) -> Dict[str, str]:
     best_candidate_map = {}
-
     for support_id, (support_v, prime_variants) in support_map.items():
         best_match = find_best_match(support_v, prime_variants, diff_threshold)
         if best_match:
@@ -141,7 +139,6 @@ def interval_select(
 
 def select_sv_candidates(
     primary_it_map: DefaultDict[str, IntervalTree],
-    dry_run: bool = False,
     use_support_map: bool = False,
     diff_threshold: int = 20,
 ) -> Tuple[DefaultDict[str, int], DefaultDict[str, List[int]]]:
@@ -180,11 +177,10 @@ def select_sv_candidates(
                         Interval(iv.begin, iv.end, data=(iv.data[0], v_supp_xs_out))
                     )
 
-            if not dry_run:
-                for interval in intervals_to_remove:
-                    tree.remove(interval)
-                for interval in intervals_to_add:
-                    tree.add(interval)
+            for interval in intervals_to_remove:
+                tree.remove(interval)
+            for interval in intervals_to_add:
+                tree.add(interval)
     return stats_dict, merged_stats
 
 
@@ -415,7 +411,7 @@ def write_vcf(
             '##INFO=<ID=SUPP,Number=1,Type=Integer,Description="Number of samples supporting the variant">'
         )
         vcf_in.header.add_line(
-            '##INFO=<ID=SOURCES,Number=1,Type=String,Description="Vector of supporting samples">'
+            '##INFO=<ID=SOURCES,Number=.,Type=String,Description="Vector of supporting samples">'
         )
 
         vcf_in.header.add_line(
@@ -429,7 +425,7 @@ def write_vcf(
         )
 
         vcf_in.header.add_line(
-            f"##ItTreeMerge: {' < '.join(sv_order_list)}, flank_len={flank_len}"
+            f"##ItTreeMerge: {' + '.join(sv_order_list)}, flank_len={flank_len}"
         )
 
         with pysam.VariantFile(out_vcf_path, "w", header=vcf_in.header) as vcf_out:
@@ -596,7 +592,6 @@ if __name__ == "__main__":
     logging.info("Selecting best supporting candidates")
     select_sv_candidates(
         primary_it_map,
-        dry_run=False,
         use_support_map=args.use_support_map,
         diff_threshold=args.diff_threshold,
     )
