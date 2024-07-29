@@ -87,9 +87,10 @@ def interval_select(
     obs_svlen = extract_svlen(obs_v)
 
     # Split SVs by caller
+    sv_id_pattern = re.compile(r"^[^_.:]*[_:.][^_.:]+") # TODO: Ideally further normalize the IDs upstream so this isn't needed...
     sv_bins = defaultdict(list)
     for v_supp in v_supp_xs:
-        id_prefix = v_supp.id[:3]
+        id_prefix = sv_id_pattern.match(v_supp.id).group() # TODO: See above
         sv_bins[id_prefix].append(v_supp)
 
     is_updated = False
