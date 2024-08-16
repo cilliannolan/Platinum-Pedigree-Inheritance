@@ -14,7 +14,7 @@ use rust_htslib::bcf::{Format, Header, Read, Reader, Writer};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// CSV containing the inheritance vectors
+    /// CSV containing the inheritance vectors (optionally gzipped)
     #[arg(short, long)]
     inheritance: String,
 
@@ -92,17 +92,23 @@ impl std::fmt::Display for InheritanceBlock {
 }
 
 fn parse_inht(inht_fn: String) -> Vec<InheritanceBlock> {
-    let mut inht_info = Vec::new();
-    let mut reader = ReaderBuilder::new().from_path(inht_fn);
+    use std::fs::File;
 
+    let mut inht_fp = File::open(&inht_fn).expect("Error reading inheritance CSV file.");
+    let inht_fp_gz = flate2::read::GzDecoder::new(&mut inht_fp);
+    let inht_fp: Box<dyn std::io::Read> = match inht_fp_gz.header() {
+        Some(_) => Box::new(inht_fp_gz),
+        None => Box::new(File::open(&inht_fn).expect("Error reading inheritance CSV file.")),
+    };
+    let mut reader = ReaderBuilder::new().from_reader(inht_fp);
+
+    let mut inht_info = Vec::new();
     let header = reader
-        .as_mut()
-        .expect("Error reading inheritance CSV header")
         .headers()
         .expect("Error reading inheritance CSV header")
         .clone();
 
-    for record in reader.expect("Error reading inheritance CSV.").records() {
+    for record in reader.records() {
         let mut ihtblock = InheritanceBlock {
             chrom: record.as_ref().unwrap()[0].to_string().clone(),
             start: record.as_ref().unwrap()[1].parse::<i32>().unwrap().clone(),
