@@ -93,12 +93,16 @@ impl std::fmt::Display for InheritanceBlock {
 
 fn parse_inht(inht_fn: String) -> Vec<InheritanceBlock> {
     use std::fs::File;
+    use std::io::Seek;
 
     let mut inht_fp = File::open(&inht_fn).expect("Error reading inheritance CSV file.");
     let inht_fp_gz = flate2::read::GzDecoder::new(&mut inht_fp);
     let inht_fp: Box<dyn std::io::Read> = match inht_fp_gz.header() {
         Some(_) => Box::new(inht_fp_gz),
-        None => Box::new(File::open(&inht_fn).expect("Error reading inheritance CSV file.")),
+        None => {
+            inht_fp.rewind().unwrap();
+            Box::new(inht_fp)
+        }
     };
     let mut reader = ReaderBuilder::new().from_reader(inht_fp);
 
