@@ -13,11 +13,11 @@ building:
 usage:
 ```
 concordance \
---father NA12877 \ 
+--father NA12877 \
 --mother NA12878 \
 --vcf {}.vcf.gz \
---inheritance data/ceph.GRCh38.viterbi.csv \ 
+--inheritance data/ceph.GRCh38.viterbi.csv.gz \
 --prefix {} > std.out
 ```
 
-The input inheritance vectors are distributed with this repo and can be found in "data/ceph.GRCh38.viterbi.csv.gz". Unzip the csv file before running the concordance code.
+The input inheritance vectors are distributed with this repo and can be found in "data/ceph.GRCh38.viterbi.csv.gz".
