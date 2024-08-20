@@ -72,10 +72,11 @@ rule remove_fails_anno:
     """
 
 rule merge_ovls:
-    input:  expand("merged_truth/{{ref}}/{parent}_resolver.ovls.bed", parent=["NA12878", "NA12877"])
+    input:  ovls=expand("merged_truth/{{ref}}/{parent}_resolver.ovls.bed", parent=["NA12878", "NA12877"]), vcf="merged_truth/{ref}/ceph_small_variant_g2g3_nolarge_indels.vcf.gz"
     output: "merged_truth/{ref}/merged_resolver.ovl.bed"
     shell: """
-        cat {input} | grep -v "#" | sort -k1,1 -k2,2n | bedtools merge -i - > {output}
+        bcftools +remove-overlaps --print-overlaps {input.vcf} | bcftools query -f '%CHROM\\t%POS0\\t%END\\n' > bcftools_ovl.bed
+         cat {input.ovls} bcftools_ovl.bed | grep -v "#" | sort -k1,1 -k2,2n | bedtools merge -i - > {output}
     """
 
 rule remove_large_indels:
