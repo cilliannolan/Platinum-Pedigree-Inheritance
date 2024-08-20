@@ -149,9 +149,6 @@ fn main() {
     );
     header.push_str("##INFO=<ID=SOURCES,Number=.,Type=String,Description=\"List of tools or technologies that called the same record\">\n");
     header.push_str("##INFO=<ID=SC,Number=1,Type=Integer,Description=\"Count of supporting tools or technologies\">\n");
-    header.push_str(
-        "##INFO=<ID=TYPE,Number=.,Type=String,Description=\"Allele Type (SNV or INDEL)\">\n",
-    );
     header.push_str("##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n");
     for c in contigs {
         header.push_str(&format!("##contig=<ID={},length={}>\n", c.id, c.len));
@@ -249,8 +246,7 @@ fn main() {
             qual: ".".to_string(),
             filter: vcf_filter.clone(),
             info: format!(
-                "TYPE={};SOURCES={};SC={}",
-                record_type,
+                "SOURCES={};SC={}",
                 sources.join(","),
                 sources.len()
             ),
