@@ -1,10 +1,13 @@
 use clap::Parser;
 use log::info;
+use rust_htslib::bcf::record::Genotype;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt;
 use std::fs::read_to_string;
 use std::fs::File;
 use std::io::Write;
+use std::vec;
 
 use log::LevelFilter;
 
@@ -38,6 +41,80 @@ struct VcfRecord {
     info: String,
     format: String,
     genotypes: Vec<String>,
+}
+
+struct MashRecord {
+    chrom: String,
+    start: String,
+    end: String,
+    ref_allele: String,
+    alt_alleles: Vec<String>,
+    genotype_sets: HashSet<String>,
+    sources_lookup: HashSet<String>,
+}
+
+impl MashRecord {
+    fn genotype_conflict(&self) -> bool {
+        if self.genotype_sets.len() > 1 {
+            return true;
+        }
+        false
+    }
+    fn chr(&self) -> String {
+        self.chrom.clone()
+    }
+    fn pos(&self) -> i64 {
+        self.start.clone().parse::<i64>().unwrap() + 1
+    }
+    fn end(&self) -> i64 {
+        self.end.clone().parse::<i64>().unwrap() + 1
+    }
+    fn genotypes(&self) -> Vec<String> {
+        let mut geno_str: Vec<String> = self
+            .genotype_sets
+            .iter()
+            .next()
+            .unwrap()
+            .split(":")
+            .map(str::to_string)
+            .collect();
+        geno_str.pop();
+        geno_str
+    }
+
+    fn reference(&self) -> String {
+        self.ref_allele.clone()
+    }
+
+    fn alts(&self) -> Vec<String> {
+        self.alt_alleles.clone()
+    }
+
+    fn mash2vcf(&self) -> VcfRecord {
+        let sources_vec: Vec<String> = self.sources_lookup.clone().into_iter().collect();
+
+        let mut vrecord = VcfRecord {
+            chrom: self.chr(),
+            start: self.pos(),
+            id: "0".to_string(),
+            ref_allele: self.ref_allele.clone(),
+            alt_allele: self.alts().join(","),
+            qual: ".".to_string(),
+            filter: "PASS".to_string(),
+            info: format!(
+                "SOURCES={};SC={}",
+                sources_vec.join(","),
+                self.sources_lookup.len()
+            ),
+            format: "GT".to_string(),
+            genotypes: self.genotypes(),
+        };
+        if self.genotype_conflict() {
+            vrecord.filter = "gt_mismatch".to_string();
+        }
+
+        vrecord
+    }
 }
 
 impl fmt::Display for VcfRecord {
@@ -76,44 +153,60 @@ fn parse_contigs(fai: String) -> Vec<Contig> {
     return result;
 }
 
-fn load_multi(mashed: String) -> HashSet<String> {
-    let mut possible_collapse: HashSet<String> = HashSet::new();
+fn load_multi(mashed: String) -> HashMap<String, Vec<(i64, String, String)>> {
+    let mut result: HashMap<String, Vec<(i64, String, String)>> = HashMap::new();
 
+    let mut line_n = 0;
     for line in read_to_string(mashed).unwrap().lines() {
-        // chr9:16058053:16058055:AT:A,AA field zero
-        let fields: Vec<String> = line.split_whitespace().map(str::to_string).collect();
-        let posinfo: Vec<String> = fields
-            .get(0)
-            .unwrap()
-            .split(":")
-            .map(str::to_string)
-            .collect();
-        if posinfo.get(4).unwrap().contains(",") {
-            let alleles: Vec<String> = posinfo
-                .get(4)
-                .unwrap()
-                .split(",")
-                .map(str::to_string)
-                .collect();
-            for a in alleles {
-                let lookup = format!(
-                    "{}:{}:{}:{}:{}",
-                    posinfo.get(0).unwrap(),
-                    posinfo.get(1).unwrap(),
-                    posinfo.get(2).unwrap(),
-                    posinfo.get(3).unwrap(),
-                    a,
-                );
-                possible_collapse.insert(lookup);
-            }
+        line_n += 1;
+        let record = parse_record(line);
+        if record.genotype_conflict() {
+            continue;
+        }
+        for a in record.alts() {
+            let lookup = format!("{}:{}", record.chr(), record.pos());
+            result
+                .entry(lookup)
+                .or_insert(Vec::new())
+                .push((line_n, record.reference(), a));
         }
     }
-    return possible_collapse;
+    result
+}
+
+fn parse_record(input: &str) -> MashRecord {
+    let fields: Vec<String> = input.split_whitespace().map(str::to_string).collect();
+    let pos_allele: Vec<String> = fields[0].split(":").map(str::to_string).collect();
+    let alts: Vec<String> = pos_allele[4]
+        .clone()
+        .split(",")
+        .map(str::to_string)
+        .collect();
+    let geno: Vec<String> = fields[1].split(",").map(str::to_string).collect();
+    let mut sources: Vec<String> = fields
+        .last()
+        .unwrap()
+        .split(",")
+        .map(str::to_string)
+        .collect();
+    sources.sort();
+
+    let mut results = MashRecord {
+        chrom: pos_allele[0].clone(),
+        start: pos_allele[1].clone(),
+        end: pos_allele[2].clone(),
+        ref_allele: pos_allele[3].clone(),
+        alt_alleles: alts,
+        genotype_sets: HashSet::from_iter(geno.iter().cloned()),
+        sources_lookup: HashSet::from_iter(sources.iter().cloned()),
+    };
+    results
 }
 
 fn main() {
     let mut failed_sites: i64 = 0;
     let mut contained_sites: i64 = 0;
+    let mut gt_missmatch: i64 = 0;
     let mut passed_sites: i64 = 0;
 
     let args = Args::parse();
@@ -159,122 +252,116 @@ fn main() {
     let samples: Vec<String> = args.samples.split(",").map(str::to_string).collect();
     let inputkeys: Vec<String> = args.ik.split(",").map(str::to_string).collect();
 
-    upset_r
-        .write(b"site\t")
-        .expect("Issue writing to upsetr file");
-    for i in &inputkeys {
-        upset_r
-            .write(format!("{}\t", i).as_bytes())
-            .expect("Issue writing to upsetr file");
-    }
-    upset_r.write(b"\n").expect("Issue writing to upsetr file");
-
     header.push_str(&samples.join("\t"));
     header.push_str("\n");
     vcf.write(header.as_bytes()).expect("Failure to write vcf");
 
-    let to_skip = load_multi(args.mashed.clone());
+    let lookup_alleles = load_multi(args.mashed.clone());
+
+    let mut line_n: i64 = 0;
 
     for line in read_to_string(args.mashed.clone()).unwrap().lines() {
-        let fields: Vec<String> = line.split_whitespace().map(str::to_string).collect();
-        let geno: Vec<String> = fields[1].split(",").map(str::to_string).collect();
-        let mut sources: Vec<String> = fields
-            .last()
-            .unwrap()
-            .split(",")
-            .map(str::to_string)
-            .collect();
-        sources.sort();
+        line_n += 1;
 
-        let source_lookup: HashSet<String> = HashSet::from_iter(sources.iter().cloned());
+        let record = parse_record(line);
 
-        upset_r
-            .write(format!("{}\t", fields[0]).as_bytes())
-            .expect("Issue writing to upsetr file");
+        let mut vrecord = record.mash2vcf();
 
-        for i in &inputkeys {
-            if source_lookup.contains(i) {
-                upset_r.write(b"1\t").expect("Issue writing to upsetr file");
-            } else {
-                upset_r.write(b"0\t").expect("Issue writing to upsetr file");
+        let mut hit_count = 0;
+
+        for a in record.alts() {
+            let lookup = format!("{}:{}", record.chr(), record.pos());
+
+            match lookup_alleles.get(&lookup) {
+                Some(value) => {
+                    for i in value {
+                        if value.len() > 1 {}
+                        // duplicate entry (by line number), not same reference
+                        if i.0 == line_n || record.reference() != i.1 {
+                            continue;
+                        }
+                        // we found a match alt allele
+                        if i.2 == a {
+                            hit_count += 1;
+                        }
+                    }
+                }
+                None => {}
             }
         }
-        upset_r.write(b"\n").unwrap();
 
-        let fg = geno[0].clone();
-
-        let mut seen_genos: HashSet<String> = HashSet::new();
-
-        for g in geno {
-            seen_genos.insert(g.clone());
-        }
-
-        let mut vcf_filter = "PASS".to_string();
-
-        // this is not a failed site, otherwise we'd skip these sites.
-        if to_skip.contains(fields.get(0).unwrap()) {
-            contained_sites += 1;
-            vcf_filter = "contained".to_string();
-        }
-
-        if seen_genos.len() > 1 {
+        if record.genotype_conflict() {
             failed_sites += 1;
-            vcf_filter = "gt_mismatch".to_string();
+            gt_missmatch += 1;
+            vrecord.filter = "gt_mismatch".to_string();
         }
+        if hit_count == record.alts().len() {
+            failed_sites += 1;
+            contained_sites += 1;
+            if vrecord.filter == "PASS" {
+                vrecord.filter = "contained".to_string();
+            }
+        }
+
         passed_sites += 1;
 
-        let pos_allele: Vec<String> = fields[0].split(":").map(str::to_string).collect();
-
-        let mut types = HashSet::new();
-
-        for a in 3..pos_allele.len() {
-            if pos_allele[a].len() > 1 {
-                types.insert("INDEL".to_string());
-            } else {
-                types.insert("SNV".to_string());
-            }
-        }
-
-        let record_type = types.into_iter().collect::<Vec<String>>().join(",").clone();
-
-        let mut record = VcfRecord {
-            chrom: pos_allele[0].clone(),
-            start: pos_allele[1].clone().parse::<i64>().unwrap() + 1,
-            id: "0".to_string(),
-            ref_allele: pos_allele[3].clone(),
-            alt_allele: pos_allele[4].clone(),
-            qual: ".".to_string(),
-            filter: vcf_filter.clone(),
-            info: format!(
-                "SOURCES={};SC={}",
-                sources.join(","),
-                sources.len()
-            ),
-            format: "GT".to_string(),
-            genotypes: fg.split(":").map(str::to_string).collect(),
-        };
-        record.genotypes.pop();
-
-        if record.filter == "PASS" {
+        if vrecord.filter == "PASS" {
             pass_bed
-                .write(
-                    format!("{}\t{}\t{}\n", pos_allele[0], pos_allele[1], pos_allele[2]).as_bytes(),
-                )
+                .write(format!("{}\t{}\t{}\n", record.chr(), record.pos(), record.end()).as_bytes())
                 .expect("failed to write bed");
         } else {
             fail_bed
-                .write(
-                    format!("{}\t{}\t{}\n", pos_allele[0], pos_allele[1], pos_allele[2]).as_bytes(),
-                )
+                .write(format!("{}\t{}\t{}\n", record.chr(), record.pos(), record.end()).as_bytes())
                 .expect("failed to write bed");
         }
 
-        vcf.write(format!("{}\n", record).as_bytes())
+        vcf.write(format!("{}\n", vrecord).as_bytes())
             .expect("Failure to write record to vcf");
     }
 
     info!(
-        "passed site count:{} failed site count:{} contained site count:{}",
-        passed_sites, failed_sites, contained_sites
+        "passed:{} failed:{} contained:{} mismatch:{} ",
+        passed_sites, failed_sites, contained_sites, gt_missmatch
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use std::vec;
+
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_parse_mash() {
+        let input = "chr10:100771810:100771812:CT:C  1|0:1|0:0|0:1|0:1|0:1|0:0|0:0|0:1|0:0|0:        dragen-ilmn".to_string();
+        let results = parse_record(&input);
+
+        let mut expected = MashRecord {
+            chrom: "chr10".to_string(),
+            start: "100771810".to_string(),
+            end: "100771812".to_string(),
+            ref_allele: "CT".to_string(),
+            alt_alleles: vec!["C".to_string()],
+            sources_lookup: HashSet::new(),
+            genotype_sets: HashSet::new(),
+        };
+        expected.sources_lookup.insert("dragen-ilmn".to_string());
+
+        assert_eq!(results.ref_allele, expected.ref_allele);
+        assert_eq!(results.alt_alleles, expected.alt_alleles);
+        assert_eq!(results.chrom, expected.chrom);
+    }
+    #[test]
+    fn test_gt_mismatch() {
+        let input = "chr10:101285645:101285668:TGGGGAGCTCCTGGGCTCAGTGG:T     1|1:1|1:0|1:1|1:1|1:1|1:0|1:0|1:1|0:1|1:,1|1:1|1:1|1:1|1:1|1:1|1:1|1:1|1:1|1:1|1:       dragen-ilmn,dv-hifi".to_string();
+        let results = parse_record(&input);
+        assert_eq!(results.genotype_conflict(), true);
+    }
+    #[test]
+    fn test_alt_count() {
+        let input = "chr10:101390764:101390769:AAAAG:A,G     0|2:0|2:1|2:0|2:0|0:0|0:1|0:1|2:0|1:2|0:        dv-hifi".to_string();
+        let results = parse_record(&input);
+        assert_eq!(results.alts().len(), 2);
+    }
 }
