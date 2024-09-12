@@ -66,7 +66,6 @@ def state_difference(state1, state2, all_states):
     if num_differences_complement < num_differences:
         num_differences = num_differences_complement
     
-    #print(f"num differences: {num_differences}")
     return num_differences
 
 # Function to create transition likelihood matrix with adjustable parameters
@@ -118,7 +117,6 @@ def create_emission_matrix(hidden_states, observed_states, error_punishment):
     emission_matrix = np.zeros([num_hidden_states, num_observed_states])
     
     # Define error probability (presence when absent)
-    #error_probability = 0.01  # Adjust this value based on your scenario #TODO
     
     for i, hidden_state in enumerate(hidden_states):
         for j, observed_state in enumerate(observed_states):
@@ -161,17 +159,14 @@ def viterbi(y, A, B, pi, state_index, haplotype_list, all_states, chromosome, ma
     
     N = B.shape[0]
     x_seq = np.zeros([N, 0])
-    #print(f"Length y: {len(y)}")
-    #print(f"y[0]: {y[0]}")
+
     V = B[:, state_index[y[0]]] * pi
-    
-    #print(f'state index {state_index}')
 
     # forward to compute the optimal value function V
     for position, y_ in enumerate(y[1:]):
         
         
-        #TODO set up state indexing
+        #set up state indexing
         observed_state = y_
         
         haplotype = haplotype_list[position + 1]
@@ -181,48 +176,24 @@ def viterbi(y, A, B, pi, state_index, haplotype_list, all_states, chromosome, ma
             converted_state = tuple()
         
         # Change from state to it's index
-        #y_ = state_index[tuple(y_)]
         obs_y_ = state_index[tuple(y_)]
-        #print(f"y_ (obs index): {obs_y_}")
         y_ = state_index[tuple(converted_state)]
         
-        
-        
-        #print(f"y_ (obs index): {y_}")
-        
-        #print(f"observed state: {observed_state}")
-        #print(f"haplotype: {haplotype}")
-        #print(f"converted state: {converted_state}")
-        #print(f"row position: {position}")
-        
-        #TODO - swap to haplotype 1 
-        
-        
-        
         _V = np.tile(B[:, y_], reps=[N, 1]).T * A.T * np.tile(V, reps=[N, 1])
-        #print(f"_V: {_V}")
-        #print(f"_V shape: {np.shape(_V)}")
+
         x_ind = np.argmax(_V, axis=1)
-        #print(f"x_ind: {x_ind}")
         x_seq = np.hstack([x_seq, np.c_[x_ind]])
-        #print(f"x_seq: {x_seq}")
         V = _V[np.arange(N), x_ind]
-        #print(f"V: {V}")
     x_T = np.argmax(V)
     
-    #print(f"x_T: {x_T}")
 
     # backward to fetch optimal sequence
-    #x_seq_opt, i = np.zeros(x_seq.shape[1]+1), x_seq.shape[1]-1
     x_seq_opt, i = np.zeros(x_seq.shape[1]+1), x_seq.shape[1]
-    #print(f"x_seq_opt: {x_seq_opt}; i: {i}")
     prev_ind = x_T
     while i >= 0:
         x_seq_opt[i] = prev_ind
         i -= 1
         prev_ind = x_seq[int(prev_ind), i]
-    # TODO - this is a different size to the optimised sequence written to disk.. why?
-    #print(f"x_seq_opt: {x_seq_opt}, len: {len(x_seq_opt)}")
     
     return x_seq_opt
     
@@ -235,8 +206,6 @@ def search_dict(dict, search_index):
     return [state for state, index in dict.items() if index == search_index]
     
 def main():
-    #print("Main")
-    #print("Parsing args:")
     args = parser.parse_args()
     test_outdir = args.test_outdir
     prefix = args.file_prefix
@@ -271,31 +240,22 @@ def main():
     
     chromosomes = ["chr" + str(chrom) for chrom in  list(range(1,23))] + ["chrX"]
     chromosomes = list(set.intersection(set(chromosomes), set(list(sites["CHROM"].unique()))))
-    #print(f"chromosomes: {*chromosomes,}")
+
     with open(args.output, "w") as f:
         for chrom in chromosomes:
         # Run viterbi per parent, per chromosome
-            #print(chrom)
             for parent in parents:
-                #print(parent)
                 
                 filtered_df = sites.query('CHROM == @chrom & called_parent == @parent & phase in ["A", "B", "C", "D", "hap1", "hap2", "hap3", "hap4"]').dropna()
                 
                 observed_sequence = pd.Series(sites.query('CHROM == @chrom & called_parent == @parent & phase in ["A", "B", "C", "D", "hap1", "hap2", "hap3", "hap4"]')[['children_calls', 'phase']].dropna()['children_calls']).to_list()
                 
                 haplotype_list = pd.Series(sites.query('CHROM == @chrom & called_parent == @parent & phase in ["A", "B", "C", "D", "hap1", "hap2", "hap3", "hap4"]')[['children_calls', 'phase']].dropna()['phase']).to_list()
-            # print(f"{observed_sequence}")
-            # [print(tuple(x.split(";"))) for x in observed_sequence]
                 observed_sequence = [tuple(x.split(";")) for x in observed_sequence]
                 optimal_sequence = viterbi(observed_sequence, transition_matrix, emission_matrix, (0.5 ** 8), state_index=state_index, haplotype_list=haplotype_list, all_states=all_individuals, chromosome=chrom, male_children=male_children, args=args)
                 
-                #filtered_df = filtered_df[1:]
-                #print(f"size df: {filtered_df.shape[0]}")
                 filtered_df['x_seq_opt']=list(optimal_sequence)
                 
-                
-                #TODO - convert optimal sequence to state A & B etc
-                #states_list = [state_index[x] for x in optimal_sequence]
                 
                 states_list=[]
                 for i in optimal_sequence:
@@ -305,12 +265,10 @@ def main():
                 
                 filtered_df.to_csv(f"{test_outdir}/{prefix}.{chrom}_{parent}.viterbi_df.txt", sep = "\t")
                 # Convert index back to inheritance state
-                # list(state_index.keys())[list(state_index.values()).index(49)]
                 f.write(f"chrom: {chrom}, parent: {parent}\n")
                 f.write(f"optimal sequence:\n")
                 np.savetxt(f, optimal_sequence, delimiter = "\t", fmt='%f')
             
-        
 
 if __name__ == "__main__":
     main()

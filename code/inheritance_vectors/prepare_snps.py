@@ -93,7 +93,6 @@ def annotate_filtered_vars(record, filtered, reason):
     filtered_line=[record.CHROM, record.POS, record.REF, reason]
     filtered.write("\t".join(str(x) for x in filtered_line) + "\n")
 
-# def get_complement_children(inheriting_children, children):
     
 class parent_info:
     """Required info regarding mom or dad"""
@@ -153,14 +152,7 @@ class parent_info:
                 self.haplotype2 = inferred_haplotypes["hap3"]
 
                 
-# class variant_inheritance:
-#     """Processing variant, assign haplotype or guess if compliant"""
-    
 
-
-# class inheritance_run:
-#     """Inheritance run of variants, calculate passing / failing vars"""
-        
 def assign_haplotype_snp(record, parent_info, grandparent_dict):
     if len([x for x in list(grandparent_dict.values()) if x is not None]) == 2:
         if record.call_for_sample[grandparent_dict['dad']].is_variant and record.call_for_sample[grandparent_dict['mom']].is_variant:
@@ -198,8 +190,6 @@ def main():
     if hasattr(args, "func"):
         args.func(args)
     
-    #dad_sample=args.dad_sample
-    #mom_sample=args.mom_sample
     parents={
         "dad": args.dad_sample,
         "mom": args.mom_sample
@@ -283,7 +273,6 @@ def main():
             continue
         
         called_in=[]
-        #Testing remove later
         parents_called_in=[]
         gparents_called_in=[]
         #
@@ -292,8 +281,6 @@ def main():
         haplotypes=[]
         for called in record.calls:
             if called.sample in children:
-                # Fix - temp
-                #haplotypes.append(called.sample)
                 haplotypes.append(called.is_variant)
                 if called.is_variant is True:
                     called_in.append(called.sample)
@@ -315,8 +302,6 @@ def main():
             grandparent, haplotype = assign_haplotype_snp(record, mom, mom_parents)
         elif called_parent == parents["dad"]:
             grandparent, haplotype = assign_haplotype_snp(record, dad, dad_parents)
-
-
 
         line = [
             record.CHROM, record.POS, record.POS, record.REF, record.ALT[0].value,

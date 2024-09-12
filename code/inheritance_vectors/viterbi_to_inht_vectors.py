@@ -62,11 +62,8 @@ def get_recombinations(file_path, parents_dict, sample_id, autosome, children):
     recombs['first_or_last'] = False
     recombs.loc[recombs.index.isin([recombs.index[0], recombs.index[-1]]), 'first_or_last'] = True
     
-    #print(recombs.head)
-    
     
     recombs['recombination'] = ~(recombs['previous_same'] & recombs['next_same']) & ~recombs['first_or_last']
-    #recombs['x_seq_opt_state'] = recombs['x_seq_opt_state'].apply(literal_eval)
     recombs['previous_state'] = recombs['x_seq_opt_state'].shift(1)
     recombs['difference_state'] = recombs.apply(lambda row: list(set(row['x_seq_opt_state']) ^ set(row['previous_state'])) if row['previous_state'] is not None else list(), axis=1)
     recombs['next_start'] = recombs['start'].shift(-1)
@@ -77,7 +74,6 @@ def get_recombinations(file_path, parents_dict, sample_id, autosome, children):
     haplotypes['end'] = haplotypes['next_start']
     haplotypes['x_seq_opt_state'] = haplotypes['x_seq_opt_state'].apply(list)
     
-    #haplotypes[['rle', 'x_seq_opt_state']].explode('x_seq_opt_state')
     haplotypes.reset_index(inplace=True)
     
     haplotypes_pivot = haplotypes[['rle', 'x_seq_opt_state']].explode('x_seq_opt_state').pivot_table(index="rle", columns =["x_seq_opt_state"], aggfunc=lambda x: 1, fill_value=0)
@@ -91,8 +87,6 @@ def get_recombinations(file_path, parents_dict, sample_id, autosome, children):
             haplotypes_pivot[missing_child] = 0
     
     haplotypes_pivot.sort_index(axis=1, inplace=True)
-    # print("Haplotypes pivot:")
-    # print(haplotypes_pivot)
     
     haplotypes = haplotypes[['CHROM', 'start', 'end', 'rle']].set_index('rle').join(haplotypes_pivot)
     
@@ -119,8 +113,6 @@ def get_recombinations(file_path, parents_dict, sample_id, autosome, children):
     haplotypes['supporting_snps'] = supporting_snps
     return chrom, haplotypes
 
-
-# def output_per_vector_analysis:
     
 def output_haplotypes_summary(combined, children, chrom, output_summary_file):
     print("test this function")
@@ -150,7 +142,6 @@ def output_haplotypes_summary(combined, children, chrom, output_summary_file):
             # Dad haplotypes
             dad_haps = child_df[['start', 'end', child]]
             dad_haps[child] = dad_haps[child].str[0]
-            #print(dad_haps)
             dad_haps['rle'] = dad_haps[child].ne(dad_haps[child].shift()).cumsum()
             num_dad_recombs = max(dad_haps['rle']) - 1
             
@@ -189,7 +180,6 @@ def merge_shifted(row, df):
     return merged
 
 def output_gaps_analysis(chrom, combined, output_prefix, children, parents_dict):
-    #print("test gaps function")
     
     for col in combined[children]:
         combined[f"{col}_shift"] = combined[col].shift()
@@ -204,7 +194,6 @@ def output_gaps_analysis(chrom, combined, output_prefix, children, parents_dict)
     combined["size"] = (combined.groupby('rle_recomb').transform('size'))
     combined["dbl_recomb"] = np.where(combined["size"] > 1, "dbl", "single")
     
-    #print(combined[["recombination", "rle_recomb", "size", "dbl_recomb"]])
     
     for child in children:
         
@@ -214,7 +203,6 @@ def output_gaps_analysis(chrom, combined, output_prefix, children, parents_dict)
         child_df['rle'] = child_df[child].ne(child_df[child].shift()).cumsum()
         child_df_grouped = child_df.groupby('rle')
 
-        #child_df_grouped[[f"{child}_dad", f"{child}_mom"]] = child_df_grouped[child].str.split('', expand=True).iloc[:, 1:-1]
         test = child_df_grouped[child].apply(lambda x: pd.DataFrame(list(x.str.split('').dropna()))).iloc[:, 1:-1].groupby('rle').first()
         test['rle_dad'] = test[1].ne(test[1].shift()).cumsum()
         test['rle_mom'] = test[2].ne(test[2].shift()).cumsum()
@@ -229,8 +217,6 @@ def output_gaps_analysis(chrom, combined, output_prefix, children, parents_dict)
         gap_end.append(np.nan)
         haps = list(child_df_grouped[child].last())
         dbls = child_df_grouped["dbl_recomb"].last()
-        #print(dbls)
-        #double_recombs
         
         
         test = {
@@ -249,8 +235,6 @@ def output_gaps_analysis(chrom, combined, output_prefix, children, parents_dict)
         test_df[['start', 'end']] = test_df[['start', 'end']].astype(int)
         test_df['CHROM'] = test_df['CHROM'].str[0]
         test_df = test_df.drop('rle', axis=1)
-        #print(test_df)
-        #print(child_df)
         # Keep only gaps with differences
         # Label difference (mom or dad id)
         # Label gap change (a->b, c->d etc)
