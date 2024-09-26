@@ -37,17 +37,36 @@ parser.add_argument(
 parser.add_argument(
     "-f", "--filtered", required=False, help="Variant file",
     type=str)
+parser.add_argument(
+    "-o", "--output", required=True, help="Output bed file",
+    type=str)
+
 
 ### SNP filtering
 ###
 
-def filter_variant(record, mom_sample, dad_sample, annotate_filtered_vars, filtered, children, grandparents, autosome):
-    if not record.call_for_sample[mom_sample].is_variant and not record.call_for_sample[dad_sample].is_variant:
+def filter_variant(ignore_parent, record, mom_sample, dad_sample, annotate_filtered_vars, filtered, children, grandparents, autosome):
+    #TODO fix this to filter vars only in parent not included
+    if ignore_parent is not None:
+        if ignore_parent == "mom": 
+            if not record.call_for_sample[dad_sample].is_variant:
+                annotate_filtered_vars(record, filtered, f"parent_ignore_{ignore_parent}")
+                return None
+            else:
+                called_parent=dad_sample
+                called_parent_gt=record.call_for_sample[dad_sample].gt_alleles
+                other_parent_sample=mom_sample
+        else:
+            if not record.call_for_sample[mom_sample].is_variant:
+                annotate_filtered_vars(record, filtered, f"parent_ignore_{ignore_parent}")
+                return None
+            else:
+                called_parent=mom_sample
+                called_parent_gt=record.call_for_sample[mom_sample].gt_alleles
+                other_parent_sample=dad_sample
+    elif not record.call_for_sample[mom_sample].is_variant and not record.call_for_sample[dad_sample].is_variant:
         annotate_filtered_vars(record, filtered, "parent_neither")
         return None
-    # elif record.call_for_sample[mom_sample].is_variant and record.call_for_sample[dad_sample].is_variant:
-    #     annotate_filtered_vars(record, filtered, "parent_both")
-    #    return None
     elif record.call_for_sample[mom_sample].is_variant:
         called_parent=mom_sample
         called_parent_gt=record.call_for_sample[mom_sample].gt_alleles
@@ -56,6 +75,8 @@ def filter_variant(record, mom_sample, dad_sample, annotate_filtered_vars, filte
         called_parent=dad_sample
         called_parent_gt=record.call_for_sample[dad_sample].gt_alleles
         other_parent_sample=mom_sample
+    #TODO getting a mysterious error here
+    # This is because this doesnt get set when ignore parent is true
     parent_gt=record.call_for_sample[called_parent].gt_alleles
     # Filtering variants not relevant for transmission vectors
     ## SNV
@@ -188,6 +209,12 @@ def assign_haplotype_snp(record, parent_info, grandparent_dict):
         haplotype = "unknown"
     return grandparent, haplotype
         
+def get_grandparents(parent, parents, pedigree):
+    grandparents={
+        "dad": pedigree.loc[pedigree["child"] == str(parents[parent])].to_dict('records')[0]['dad'],
+        "mom": pedigree.loc[pedigree["child"] == str(parents[parent])].to_dict('records')[0]['mom']
+        }
+    return grandparents
 
 def main():
     args = parser.parse_args()
@@ -200,6 +227,8 @@ def main():
         "dad": args.dad_sample,
         "mom": args.mom_sample
     }
+    #if args.ignore_parent is not None:
+    #    del parents[args.ignore_parent]
 
     pedigree=pd.read_csv(args.pedigree, sep='\t').astype(str)
 
@@ -221,15 +250,19 @@ def main():
     children=list(set(children_dict["mom"]).intersection(set(children_dict["dad"])))
     # Sort children to match ordered dict from vcfpy
     children.sort()
+    
+    if args.ignore_parent is not None:
+        print(f"ignoring a parent, arg passed: {args.ignore_parent}")
+        if args.ignore_parent == "mom":
+            print("ignoring mom, creating dad parents")
+            dad_parents = get_grandparents("dad", parents, pedigree)
+        else:
+            print("ignoring dad, creating mom parents")
+            mom_parents = get_grandparents("mom", parents, pedigree)
+    else:
+        mom_parents = get_grandparents("mom", parents, pedigree)
+        dad_parents = get_grandparents("dad", parents, pedigree)
 
-    mom_parents={
-        "dad": pedigree.loc[pedigree["child"] == str(parents["mom"])].to_dict('records')[0]['dad'],
-        "mom": pedigree.loc[pedigree["child"] == str(parents["mom"])].to_dict('records')[0]['mom']
-        }
-    dad_parents={
-        "dad": pedigree.loc[pedigree["child"] == str(parents["dad"])].to_dict('records')[0]['dad'],
-        "mom": pedigree.loc[pedigree["child"] == str(parents["dad"])].to_dict('records')[0]['mom']
-        }
     
     # Subset grandparents 
     if args.subset_gparents:
@@ -240,39 +273,56 @@ def main():
         for k, v in dad_parents.items():
             if v not in grandparents:
                 dad_parents[k] = None
-    grandparents=list(mom_parents.values()) + list(dad_parents.values())
-    
+    #TODO - dont add grandparents from ignored parent
+    print(f"{mom_parents}")
+    if args.ignore_parent is not None:
+        if args.ignore_parent == "mom":
+            print(f"ignoring mom - arg {args.ignore_parent}")
+            grandparents=list(dad_parents.values())
+        else:
+            print(f"ignoring dad, using mom parents - arg: {args.ignore_parent}")
+            grandparents=list(mom_parents.values())
+    else:
+        grandparents=list(mom_parents.values()) + list(dad_parents.values())
 
-    
     # Depending on missing gparents
     ## Use a function for this
     
-    ## gparent sample -> haplotype
-    
+    ## gparent sample -> haplotype 
     reader = vcfpy.Reader.from_path(args.cohort_calls)
     autosome = ["chr" + str(chrom) for chrom in  list(range(1,23))]
-    dad = parent_info(parents["dad"], "dad", dad_parents)
-    mom = parent_info(parents["mom"], "mom", mom_parents)
+    #TODO
+    if args.ignore_parent is not None:
+        if args.ignore_parent == "mom":
+            dad = parent_info(parents["dad"], "dad", dad_parents)
+        else:
+            mom = parent_info(parents["mom"], "mom", mom_parents)
+    else:
+        dad = parent_info(parents["dad"], "dad", dad_parents)
+        mom = parent_info(parents["mom"], "mom", mom_parents)
+    
     header=[
         "#CHROM", "start", "end", 'REF', "ALT", "called_parent", "grandparent", "phase",
         #*[child + "_child" for child in children],
         "children_calls"#,
         #"transmission_vector_run", "run_id"
         ]
-    print("\t".join(header))
+    
+    output = open(args.output, "w", encoding="utf-8")
+    output.write("\t".join(header) + "\n")
 
     
-    filtered = open(args.filtered, 'w', encoding="utf-8")
-    filtered_header=header=[
+    filtered = open(args.filtered, "w", encoding="utf-8")
+    filtered_header=[
         "#CHROM", "start", "end", 'REF', "ALT", "calls", "genotype", "depth", "filter"
         ]
-    filtered.write("\t".join(filtered_header))
+    filtered.write("\t".join(filtered_header) + "\n")
 
     mom_transmission_vector_run, dad_transmission_vector_run, run_id = (0, 0, 0)
 
     for record in reader:
         # Filter variants - what is returned here? #TODO
-        filtered_variant = filter_variant(record, parents["mom"], parents["dad"], annotate_filtered_vars, filtered, children, grandparents, autosome)
+        filtered_variant = filter_variant(args.ignore_parent, record, parents["mom"], parents["dad"], annotate_filtered_vars, filtered, children, grandparents, autosome)
         if filtered_variant is not None:
             record, called_parent, other_parent_sample = filtered_variant
         else:
@@ -304,6 +354,7 @@ def main():
                 continue
         
         # Assign haplotypes
+        #TODO
         if called_parent == parents["mom"]:
             grandparent, haplotype = assign_haplotype_snp(record, mom, mom_parents)
         elif called_parent == parents["dad"]:
@@ -316,9 +367,10 @@ def main():
         line += [";".join(called_in)]
 
 
-        print("\t".join(map(str, line)))
+        output.write("\t".join(map(str, line)) + "\n")
     
     filtered.close()
+    output.close()
 
 
 if __name__ == "__main__":
