@@ -3,7 +3,7 @@ import os
 
 chromosomes=["chr" + str(chrom) for chrom in  list(range(1,23))] + ["chrX"]
 
-parents=[config["dad"], config["mom"]]
+parents=[str(config["dad"]), str(config["mom"])]
 children=config["children"].split(",")
 male_children=config["male_children"].split(",")
 
@@ -47,7 +47,7 @@ def chromosome_split_list(chromosomes, split_dict):
 try:
     config["chromosomes"]
     chromosomes = [config["chromosomes"]]
-except NameError:
+except KeyError:
     pass
 
 outlist = chromosome_split_list(chromosomes, split_dict)
@@ -76,7 +76,7 @@ rule prepare_snps:
         children=",".join(children),
     input:
         script="../../code/inheritance_vectors/prepare_snps.py",
-        cohort_ped="data/CEPH1463.inht_vectors.ped",
+        cohort_ped="data/CEPH1463.inht_vectors.updated.ped",
         cohort_vcf=config["input_vcf"]
     output:
         filtered=f"output/prepare_snps/filtered/{file_prefix}.filtered.vcf",
@@ -175,7 +175,7 @@ rule viterbi_window:
 rule gather_window_results:
     input:
         chr1="output/windows/viterbi_{parent}_{chrom}.01/{file_prefix}.{chrom}_{parent}.viterbi_df.txt",
-        out_files=expand("output/windows/viterbi_{{parent}}_{splits_ending}/{{file_prefix}}.{{chrom}}_{{parent}}.out.tsv", splits_ending=outlist)
+        #out_files=expand("output/windows/viterbi_{{parent}}_{splits_ending}/{{file_prefix}}.{{chrom}}_{{parent}}.out.tsv", splits_ending=outlist)
     output:
         "output/windows/viterbi/{file_prefix}.{chrom}.{parent}.viterbi.tsv"
     conda:
