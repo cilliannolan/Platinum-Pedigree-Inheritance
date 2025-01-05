@@ -3,6 +3,9 @@ import os
 
 chromosomes=["chr" + str(chrom) for chrom in  list(range(1,23))] + ["chrX"]
 
+#TEMP
+chromosomes = ["chr" + str(chrom) for chrom in  list(range(1,23))]
+
 parents=[str(config["dad"]), str(config["mom"])]
 children=config["children"].split(",")
 male_children=config["male_children"].split(",")
@@ -75,12 +78,16 @@ wildcard_constraints:
 
 file_prefix = ".".join(os.path.basename(config["input_vcf"]).split('.')[:-2])
 
+
+
 rule all:
     input:
         expand("output/split/{file_prefix}.{chroms}.{parents}.bed", file_prefix=file_prefix, chroms=chromosomes, parents=parents_out),
         #expand("output/windows/viterbi/{file_prefix}.{chrom}.viterbi.csv", chrom=chromosomes, file_prefix=file_prefix),
-        expand("output/windows/viterbi_{parents}_{chroms}.01/{file_prefix}.{chroms}_{parents}.viterbi_df.txt", file_prefix=file_prefix, chroms=chromosomes, parents=parents_out),
-        #f"output/viterbi/{file_prefix}.inht_vectors.csv"
+        expand("output/windows/viterbi_{parent}_{chrom_splits}/{file_prefix}.{parent}.out.tsv", chrom_splits=outlist, parent=parents_out, file_prefix=file_prefix),
+        expand("output/windows/viterbi/{file_prefix}.{chroms}.{parents}.viterbi.tsv", file_prefix=file_prefix, chroms=chromosomes, parents=parents_out),
+        expand("output/windows/viterbi/{file_prefix}.{chroms}.{parents}.viterbi.csv", file_prefix=file_prefix, chroms=chromosomes, parents=parents_out),
+        expand("output/windows/gaps/{file_prefix}.{parent}.{child}.gaps.bed", file_prefix=file_prefix, parent=parents_out, child=children)
 
 rule prepare_snps:
     params:
@@ -158,12 +165,12 @@ rule viterbi_window:
     input:
         split_dir=directory("output/split/{file_prefix}.{chrom}.{parent}"),
         #sites="output/split/{chrom}.{parent}/{chrom}.{parent}.0{split}",
-        script="../../code/inheritance_vectors/viterbi.py"
+        script="../../code/inheritance_vectors/viterbi.single_parent.py"
     output:
-        t_mat="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{chrom}_{parent}.t_matrix.txt",
-        e_mat="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{chrom}_{parent}.e_matrix.txt",
-        viterbi="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{chrom}_{parent}.out.tsv",
-        out_df="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{chrom}_{parent}.viterbi_df.txt"
+        t_mat="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{parent}.t_matrix.txt",
+        e_mat="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{parent}.e_matrix.txt",
+        viterbi="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{parent}.out.tsv",
+        out_df="output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{parent}.viterbi_df.txt"
     conda:
         "envs/inht_vectors.yaml"
     shell:
@@ -183,8 +190,9 @@ rule viterbi_window:
 
 rule gather_window_results:
     input:
-        chr1="output/windows/viterbi_{parent}_{chrom}.01/{file_prefix}.{chrom}_{parent}.viterbi_df.txt",
-        #out_files=expand("output/windows/viterbi_{{parent}}_{splits_ending}/{{file_prefix}}.{{chrom}}_{{parent}}.out.tsv", splits_ending=outlist)
+        chr1="output/windows/viterbi_{parent}_{chrom}.01/{file_prefix}.{parent}.viterbi_df.txt",
+        #TODO
+        out_files=expand("output/windows/viterbi_{{parent}}_{splits_ending}/{{file_prefix}}.{{parent}}.out.tsv", splits_ending=outlist)
     output:
         "output/windows/viterbi/{file_prefix}.{chrom}.{parent}.viterbi.tsv"
     conda:
@@ -196,7 +204,7 @@ rule gather_window_results:
 
         OUT_DIRS=($(dirname {input.out_files}))
         for i in ${{OUT_DIRS[@]}}; do 
-            cat ${{i}}/chr*_NA*.viterbi_df.txt | c1grep -v "CHROM" | c1grep -P "{wildcards.chrom}\\t" >> {output}
+            cat ${{i}}/*.NA*.viterbi_df.txt | c1grep -v "CHROM" | c1grep -P "{wildcards.chrom}\\t" >> {output}
         done
         """
 
@@ -210,8 +218,8 @@ rule viterbi_to_inht_vectors:
         sites="output/windows/viterbi/{file_prefix}.{chrom}.{parent}.viterbi.tsv",
     output:
         inht_vectors="output/windows/viterbi/{file_prefix}.{chrom}.{parent}.viterbi.csv",
-        chr_summary="output/windows/viterbi/{file_prefix}.{chrom}.{parent}.summary.tsv",
-        gaps=expand("output/windows/viterbi/{{file_prefix}}.{{chrom}}.{parent}.{child}.tsv", child=children)
+        #chr_summary="output/windows/viterbi/{file_prefix}.{chrom}.{parent}.summary.tsv",
+        gaps=expand("output/windows/viterbi/{{file_prefix}}.{{chrom}}.{{parent}}.{child}.tsv", child=children)
     conda:
         "envs/pandas.yaml"
     shell:
@@ -223,8 +231,7 @@ rule viterbi_to_inht_vectors:
             --parents "{params.parents}" \\
             --output-inht {output.inht_vectors} \\
             --output-gaps "output/windows/viterbi/{wildcards.file_prefix}.{wildcards.chrom}.{wildcards.parent}" \\
-            --output-analysis "output/windows/viterbi/{wildcards.file_prefix}.{wildcards.chrom}.{wildcards.parent}.test_analysis.txt" \\
-            --output-summary {output.chr_summary}
+            --single-parent "{wildcards.parent}"
         """
 
 rule combine_vectors:
@@ -236,4 +243,25 @@ rule combine_vectors:
         """
         head -n 1 {input[0]} > {output}
         cat {input} | grep -v "CHROM" >> {output}
+        """
+
+rule combine_gaps:
+    input:
+        gaps=expand("output/windows/viterbi/{{file_prefix}}.{chroms}.{{parent}}.{{child}}.tsv", chroms=chromosomes)
+    output:
+        bed="output/windows/viterbi/{file_prefix}.{parent}.{child}.gaps.bed"
+    shell:
+        """
+        cat {input.gaps} \\
+            | grep -v "^CHROM" > {output}
+        """
+
+rule gaps_minimal_bed:
+    input:
+        bed="output/windows/viterbi/{file_prefix}.{parent}.{child}.gaps.bed"
+    output:
+        bed="output/windows/gaps/{file_prefix}.{parent}.{child}.gaps.bed"
+    shell:
+        """
+        awk '{{print $1, $2, $3, $4, $5}}' {input} > {output}
         """

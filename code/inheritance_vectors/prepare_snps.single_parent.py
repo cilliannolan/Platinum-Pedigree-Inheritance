@@ -273,8 +273,7 @@ def main():
         for k, v in dad_parents.items():
             if v not in grandparents:
                 dad_parents[k] = None
-    #TODO - dont add grandparents from ignored parent
-    print(f"{mom_parents}")
+
     if args.ignore_parent is not None:
         if args.ignore_parent == "mom":
             print(f"ignoring mom - arg {args.ignore_parent}")
