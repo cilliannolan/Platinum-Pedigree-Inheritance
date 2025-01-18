@@ -51,6 +51,8 @@ python3 viterbi.py \
     --output {viterbi}
 ```
 
+Per window, per parent viterbi file is output to `output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{chrom}_{parent}.viterbi_df.txt`
+
 |   | CHROM | start | end   | REF | ALT | called_parent | grandparent | phase | children_calls                        | x_seq_opt | x_seq_opt_state                   |
 |---|-------|-------|-------|-----|-----|---------------|-------------|-------|---------------------------------------|-----------|-----------------------------------|
 | 1 | chr1  | 25979 | 25979 | G   | A   | NA12879       | NA12878     | D     | 200081;200085                         | 40.0      | [('200084', '200086', '200087')] |
@@ -59,10 +61,15 @@ python3 viterbi.py \
 
 This file outputs the most likely inheriting children for each SNP in the window, contained in the `x_seq_opt_state` column. 
 
+Optimum states are then collapsed into continuous haplotype blocks, and windowed files are combined into a single output inheritance vectors file (`output/viterbi/{vcf_prefix}.inht_vectors.csv`):
 
-3. Output
+| CHROM | start    | end      | NA12879 | NA12881 | NA12882 | NA12883 | NA12884 | NA12885 | NA12886 | NA12887 | NA12877 | NA12878 |
+|-------|----------|----------|---------|---------|---------|---------|---------|---------|---------|---------|---------|---------|
+| chr1  | 5324     | 996948   | AC      | BD      | BC      | AC      | AD      | BC      | BD      | BC      | AB      | CD      |
+| chr1  | 1027469  | 2648764  | AC      | BD      | BC      | AC      | AD      | AC      | BD      | BC      | AB      | CD      |
+| chr1  | 2690284  | 4613470  | AC      | BD      | BC      | AC      | AD      | AC      | AD      | BC      | AB      | CD      |
 
-## Run the workflow
+## How to run the snakemake workflow
 
 Set up and activate your snakemake environment using conda to run the workflow:
 
