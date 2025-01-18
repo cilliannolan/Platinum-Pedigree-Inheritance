@@ -39,9 +39,6 @@ def filter_variant(record, mom_sample, dad_sample, annotate_filtered_vars, filte
     if not record.call_for_sample[mom_sample].is_variant and not record.call_for_sample[dad_sample].is_variant:
         annotate_filtered_vars(record, filtered, "parent_neither")
         return None
-    # elif record.call_for_sample[mom_sample].is_variant and record.call_for_sample[dad_sample].is_variant:
-    #     annotate_filtered_vars(record, filtered, "parent_both")
-    #    return None
     elif record.call_for_sample[mom_sample].is_variant:
         called_parent=mom_sample
         called_parent_gt=record.call_for_sample[mom_sample].gt_alleles

@@ -1,5 +1,37 @@
 # Inheritance vectors
 
+## Workflow steps
+
+1. Prepare SNPs (`prepare_snps.py`)
+
+This step assigns haplotype identity for each SNP in the cohort vcf, by taking the identity from grandparents (paternal: A, B, maternal: C, D).
+
+It is run as follows:
+
+```bash
+python {input.script} \
+    --cohort-calls {input.cohort_vcf} \
+    --pedigree {input.cohort_ped} \
+    --dad-sample {params.dad} \
+    --mom-sample {params.mom} \
+    --subset-children {params.children} \
+    --filtered {output.filtered} \
+    > {output.bed}
+```
+
+It ouputs a TSV file with the following structure:
+
+```
+| #CHROM | start | end  | REF | ALT | called_parent | grandparent | phase | children_calls |
+|--------|-------|------|-----|-----|---------------|-------------|-------|----------------|
+| chr1   | 4736  | 4736 | C   | A   | NA12886       | NA12878     | B     | 200102         |
+| chr1   | 5324  | 5324 | C   | A   | NA12886       | NA12878     | B     | 200102         |
+| chr1   | 6137  | 6137 | G   | A   | NA12886       | NA12878     | B     | 200102         |
+```
+
+2. Viterbi
+3. Output
+
 ## Run the workflow
 
 Set up and activate your snakemake environment using conda to run the workflow:

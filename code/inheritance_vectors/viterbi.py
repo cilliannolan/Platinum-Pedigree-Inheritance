@@ -143,7 +143,6 @@ def viterbi(y, A, B, pi, state_index, haplotype_list, all_states, chromosome, ma
         :param B: the emission matrix
         :param pi: the initial probability distribution
         :param state_index: Dictionary to translate between the state and its index row/columns in the e and t matrices
-        https://medium.com/@zhe.feng0018/coding-viterbi-algorithm-for-hmm-from-scratch-ca59c9203964
         
         Returns:
         :x_seq_opt: optimal sequence
@@ -225,13 +224,9 @@ def main():
     # Create the transition likelihood matrix with custom parameters
     transition_matrix = create_transition_matrix(possible_states, 0.95, change_punishment)
 
-    #print("Transition Likelihood Matrix:")
-    #print(transition_matrix)
     transition_matrix_df = pd.DataFrame(transition_matrix.astype(float))
     transition_matrix_df.to_csv(args.transmission_matrix, sep ="\t", header = possible_states, index = possible_states)
     
-    #print("Emission matrix:")
-    #print(emission_matrix)
     emission_matrix_df = pd.DataFrame(emission_matrix.astype(float))
     emission_matrix_df.to_csv(args.emission_matrix, sep ="\t", header = possible_states, index = possible_states)
     
