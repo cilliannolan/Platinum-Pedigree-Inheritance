@@ -53,13 +53,14 @@ python3 viterbi.py \
 
 Per window, per parent viterbi file is output to `output/windows/viterbi_{parent}_{chrom}.0{split}/{file_prefix}.{chrom}_{parent}.viterbi_df.txt`
 
-|   | CHROM | start | end   | REF | ALT | called_parent | grandparent | phase | children_calls                        | x_seq_opt | x_seq_opt_state                   |
-|---|-------|-------|-------|-----|-----|---------------|-------------|-------|---------------------------------------|-----------|-----------------------------------|
-| 1 | chr1  | 25979 | 25979 | G   | A   | NA12879       | NA12878     | D     | 200081;200085                         | 40.0      | [('200084', '200086', '200087')] |
-| 2 | chr1  | 28485 | 28485 | C   | T   | NA12879       | NA12878     | D     | 200081;200082;200084;200086;200087    | 40.0      | [('200084', '200086', '200087')] |
-| 3 | chr1  | 28716 | 28716 | C   | T   | NA12879       | NA12878     | D     | 200081;200082;200084;200086;200087    | 40.0      | [('200084', '200086', '200087')] |
+| Row | CHROM | start   | end     | REF | ALT | called_parent | grandparent | phase | children_calls            | x_seq_opt | x_seq_opt_state                   |
+|-----|-------|---------|---------|-----|-----|---------------|-------------|-------|---------------------------|-----------|-----------------------------------|
+| 788 | chr1  | 2194656 | 2194656 | C   | T   | NA12879       | NA12877     | C     | 200084;200086;200087      | 40.0      | [('200084', '200086', '200087')] |
+| 789 | chr1  | 2195012 | 2195012 | G   | A   | NA12879       | NA12877     | C     | 200084;200086;200087      | 40.0      | [('200084', '200086', '200087')] |
+| 790 | chr1  | 2199387 | 2199387 | C   | G   | NA12879       | NA12878     | D     | 200081;200082;200085      | 40.0      | [('200084', '200086', '200087')] |
+| 791 | chr1  | 2241520 | 2241520 | A   | G   | NA12879       | NA12877     | C     | 200084;200086;200087      | 40.0      | [('200084', '200086', '200087')] |
 
-This file outputs the most likely inheriting children for each SNP in the window, contained in the `x_seq_opt_state` column. 
+This file outputs the most likely inheriting children for the first grandparental haplotype (A or C) at each genomic position in the window, contained in the `x_seq_opt_state` column. 
 
 Optimum states are then collapsed into continuous haplotype blocks, and windowed files are combined into a single output inheritance vectors file (`output/viterbi/{vcf_prefix}.inht_vectors.csv`):
 
