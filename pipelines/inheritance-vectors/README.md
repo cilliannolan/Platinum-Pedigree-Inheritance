@@ -4,7 +4,7 @@
 
 1. Prepare SNPs (`prepare_snps.py`)
 
-This step assigns haplotype identity for each SNP in the cohort vcf, by taking the identity from grandparents (paternal: A, B, maternal: C, D).
+This step assigns haplotype identity for each SNP in the cohort vcf, by taking the identity from the grandparents, as defined in the pedigree file. Haplotypes are named arbitrarily as A, B, C, D (paternal grandfather - A, paternal grandmother - B, maternal grandfather - C, maternal grandmother - D).
 
 It is run as follows:
 
@@ -29,6 +29,8 @@ It ouputs a BED file with the following structure:
 | chr1   | 6137  | 6137 | G   | A   | NA12886       | NA12878     | B     | 200102         |
 ```
 
+Assigned haplotype is contained in the `phase` column, the children in which this variant is observed are listed in the `children_calls` column.
+
 Output bed files are split into seperate files for variants occuring in each parent, these bed files are then split by chromosome and into along each chromosome to allow for parallelisation by window.
 
 2. Viterbi (`viterbi.py`)
@@ -48,6 +50,14 @@ python3 viterbi.py \
     --punishment "{snp_punishment},{change_punishment}" \
     --output {viterbi}
 ```
+
+|   | CHROM | start | end   | REF | ALT | called_parent | grandparent | phase | children_calls                        | x_seq_opt | x_seq_opt_state                   |
+|---|-------|-------|-------|-----|-----|---------------|-------------|-------|---------------------------------------|-----------|-----------------------------------|
+| 1 | chr1  | 25979 | 25979 | G   | A   | NA12879       | NA12878     | D     | 200081;200085                         | 40.0      | [('200084', '200086', '200087')] |
+| 2 | chr1  | 28485 | 28485 | C   | T   | NA12879       | NA12878     | D     | 200081;200082;200084;200086;200087    | 40.0      | [('200084', '200086', '200087')] |
+| 3 | chr1  | 28716 | 28716 | C   | T   | NA12879       | NA12878     | D     | 200081;200082;200084;200086;200087    | 40.0      | [('200084', '200086', '200087')] |
+
+This file outputs the most likely inheriting children for each SNP in the window, contained in the `x_seq_opt_state` column. 
 
 
 3. Output
