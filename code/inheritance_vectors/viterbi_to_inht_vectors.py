@@ -242,12 +242,6 @@ def output_gaps_analysis(chrom, combined, output_prefix, children, parents_dict)
         outfile = f"{output_prefix}.{child}.tsv"
         test_df.to_csv(outfile, sep='\t', index=False)
     
-    
-    
-    
-    
-
-
 def main():
     # Load viterbi output
     args = parser.parse_args()
@@ -264,33 +258,24 @@ def main():
     
     autosome=["chr" + str(chrom) for chrom in  list(range(1,23))]
     
-    
     chrom, mom_recombs=get_recombinations(args.input_mom, parents_dict, mom_id, autosome, children)
     if chrom in autosome:
         dad_chrom, dad_recombs=get_recombinations(args.input_dad, parents_dict, dad_id, autosome, children)
     elif chrom =="chrX":
         dad_recombs = pd.DataFrame(columns=['CHROM', 'start', 'end'] + [child + "_dad" for child in children])
     
-    # print(mom_recombs)
-    # print(dad_recombs)
-    
     if chrom in autosome:
         combined=pd.concat([dad_recombs, mom_recombs], ignore_index=True, sort=True).sort_values(['start'])
         combined=combined.fillna(method='ffill')
         combined=combined.fillna(method='bfill')
-        # combined[children]=combined[children].fillna(method='ffill')
-        # combined[children]=combined[children].fillna(method='bfill')
-        # print("Combined 1:")
-        # print(combined)
+
         for child in children:
             child_columns = combined[combined.columns[pd.Series(combined.columns).str.startswith(child)]]
-            #print(child_columns)
             combined[child] = child_columns.iloc[:, 0] + child_columns.iloc[:, 1]
     elif chrom == "chrX":
         combined=pd.concat([dad_recombs, mom_recombs], ignore_index=True, sort=True).sort_values(['start'])
         for child in children:
             child_columns = combined[combined.columns[pd.Series(combined.columns).str.startswith(child)]]
-            #print(child_columns)
             if child in male_children:
                 combined[child] = child_columns.iloc[:, 1] + child_columns.iloc[:, 1]
             else:
@@ -323,11 +308,6 @@ def main():
         if row['next_start'] and row['end'] > row['next_start']:
             max_value = max(i for i in row['supporting_snps'] if i <= row['next_start'])
             combined.at[index, 'end'] = max_value 
-    #print(combined)
-    
-    # End can be less than start for same vector, how is this happening
-    
-    
     
     out_df = combined[['CHROM', 'start', 'end'] + children + list(parents_dict.keys())]
     out_df['end'] = out_df['end'].astype(int)

@@ -9,7 +9,7 @@ This step assigns haplotype identity for each SNP in the cohort vcf, by taking t
 It is run as follows:
 
 ```bash
-python {input.script} \
+python prepare_snps.py \
     --cohort-calls {input.cohort_vcf} \
     --pedigree {input.cohort_ped} \
     --dad-sample {params.dad} \
@@ -19,7 +19,7 @@ python {input.script} \
     > {output.bed}
 ```
 
-It ouputs a TSV file with the following structure:
+It ouputs a BED file with the following structure:
 
 ```
 | #CHROM | start | end  | REF | ALT | called_parent | grandparent | phase | children_calls |
@@ -29,7 +29,27 @@ It ouputs a TSV file with the following structure:
 | chr1   | 6137  | 6137 | G   | A   | NA12886       | NA12878     | B     | 200102         |
 ```
 
-2. Viterbi
+Output bed files are split into seperate files for variants occuring in each parent, these bed files are then split by chromosome and into along each chromosome to allow for parallelisation by window.
+
+2. Viterbi (`viterbi.py`)
+
+The HMM is defined according to the "snp_punishment" & "change_punishment" parameters, and viterbi is run per window, calculating the most likely haplotype blocks in each window.
+
+```bash
+python3 viterbi.py \
+    --input {split_dir} \
+    --file-prefix {file_prefix} \
+    --parents-list {parents} \
+    --children {children} \
+    --male-children {params.male_children} \
+    --transmission-matrix {t_mat} \
+    --emission-matrix {e_mat} \
+    --test-outdir {outdir} \
+    --punishment "{snp_punishment},{change_punishment}" \
+    --output {viterbi}
+```
+
+
 3. Output
 
 ## Run the workflow
