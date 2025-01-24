@@ -31,11 +31,11 @@ It ouputs a BED file with the following structure:
 
 Assigned haplotype is contained in the `phase` column, the children in which this variant is observed are listed in the `children_calls` column.
 
-Output bed files are split into seperate files for variants occuring in each parent, these bed files are then split by chromosome and into along each chromosome to allow for parallelisation by window.
+Output bed files are split into seperate files for variants occuring in each parent, these bed files are then split by chromosome and into windows along each chromosome to allow parallelisation by window.
 
 2. Viterbi (`viterbi.py`)
 
-The HMM is defined according to the "snp_punishment" & "change_punishment" parameters, and viterbi is run per window, calculating the most likely haplotype blocks in each window.
+The HMM is defined according to the "snp_punishment" & "change_punishment" parameters. These create the transmission and emission matrices, which describe the probability of a SNP calling error or a change in inheritance (recombination) respectively. The viterbi algorithm is run per window, calculating the most likely haplotype blocks in each window.
 
 ```bash
 python3 viterbi.py \
